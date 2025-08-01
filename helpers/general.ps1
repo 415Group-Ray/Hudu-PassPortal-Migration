@@ -211,7 +211,7 @@ function Get-ArticlePreviewBlock {
     }
 
 @"
-Mapping Sharepoint Page $descriptor ---
+Mapping Passportal Page $descriptor ---
 Title: $Title
 Snippet: $snippet
 "@

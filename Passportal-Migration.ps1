@@ -17,24 +17,22 @@ $PassPortalHeaders = @{"x-api-key"    = $PassportalApiKey
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 $BaseUri = "https://$($SelectedLocation.APIBase).passportalmsp.com"
 Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
-Set-Content -Path $logFile -Value "Starting Sharepoint Migration" 
+Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
 Set-PrintAndLog -message "Checked Hudu Credentials... $(Set-HuduInstance)" -Color DarkBlue
 Set-PrintAndLog -message "Checked Hudu Version... $(Get-HuduVersionCompatible)" -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
-
+$passportalData = @{}
 
 # --- Example usage ---
-$folders = Get-PassportalLeafArrays -Data $(Get-PassportalFolders)
-$passwords =  Get-PassportalLeafArrays -Data $(Get-PassportalPasswords)
+$folders = Get-FlatPassportalData -Data $(Get-PassportalObjects -objectType "folders")
+$folders = Get-FlatPassportalData -Data $(Get-PassportalObjects -objectType "passwords")
 
-Write-Output "Folders:"
-write-host "$(($folders | convertto-json -depth 66).ToString())"
-
-Write-Output "Passwords:"
- $passwords
+Write-Output "Folders: $folders"
+Write-Output "Passwords: $passwords"
+ 
 
 Write-Host "Unsetting vars before next run."
 # foreach ($var in $sensitiveVars) {

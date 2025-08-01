@@ -1,7 +1,7 @@
 
 # Define and set up some paths
 $logsFolder=$(join-path "$workdir" "logs")
-$logFile=$(join-path "$logsFolder" "SharepointLog")
+$logFile=$(join-path "$logsFolder" "PassPortalLog")
 $downloadsFolder=$(join-path "$workdir" "downloads")
 $allSitesfolder=$(join-path "$workdir" "sites")
 $tmpfolder=$(join-path "$workdir" "tmp")
@@ -38,7 +38,6 @@ $RunSummary=@{
     SetupInfo=@{
         HuduDestination     = $HuduBaseUrl
         HuduMaxContentLength= 4500
-        SharepointSource    = $SharepointBaseUrl
         HuduVersion         = [version]$HuduAppInfo.version
         PowershellVersion   = [version]$PowershellVersion
         project_workdir     = $project_workdir
