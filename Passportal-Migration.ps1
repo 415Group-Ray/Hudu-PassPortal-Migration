@@ -1,3 +1,4 @@
+$workdir = $PSScriptRoot
 # --- CONFIGURATION ---
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders")
 $PassportalApiKey = $PassportalApiKey ?? "$(read-host "please enter your PassportalApiKey")"
@@ -21,6 +22,8 @@ Set-PrintAndLog -message "Checked Hudu Credentials... $(Set-HuduInstance)" -Colo
 Set-PrintAndLog -message "Checked Hudu Version... $(Get-HuduVersionCompatible)" -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
+
+
 # --- Example usage ---
 $folders = Get-PassportalFolders
 $passwords = Get-PassportalPasswords
@@ -30,6 +33,7 @@ $folders | Format-Table
 
 Write-Output "Passwords:"
 $passwords | Format-Table Name Username Notes
+
 
 Write-Host "Unsetting vars before next run."
 foreach ($var in $sensitiveVars) {
