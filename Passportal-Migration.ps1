@@ -27,10 +27,11 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     . $file.FullName
 }
 
-$authResult = Get-PassportalAuthToken -apiKey $passportalData.APIKeyId `
-                                      -apiSecret $passportalData.APIKey `
-                                      -identifier $passportalData.Identifier `
-                                      -scope "global"
+$authResult = Get-PassportalAuthToken `
+    -apiKey $passportalData.APIKeyId `
+    -apiSecret $passportalData.APIKey `
+    -identifier $passportalData.Identifier `
+    -scope "global"
 
 $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
