@@ -3,16 +3,21 @@ $workdir = $PSScriptRoot
 $passportalData = @{
     Requested = @("folders", "passwords", "clients", "companies")
     Fetched = @{}
-    APIkey = $($passportalData.APIkey ?? "$(read-host "please enter your Passportal API key")")
-    APIkeyId = $($passportalData.APIkeyId ?? "$(read-host "please enter your Passportal API key")")
+    APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")")
+    APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
+    Identifier = $($passporatalData_Identifier ?? $(read-host "please enter your identifier (email)"))
+    Token = $null
+    Headers = @{}
 }
+
+
 
 
 
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
-$BaseUri = "https://$($SelectedLocation.APIBase).passportalmsp.com/v4"
+$BaseUri = "https://$($SelectedLocation.APIBase).passportalmsp.com/api/v2/"
 # $BaseUri = "https://api.passportalmsp.com/v4"
 
 # Set-Up
@@ -20,9 +25,16 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-$passportalData.requestHeaders = @{"x-api-key"    = $passportalData.APIkey
-                       "x-api-key-id" = $passportalData.APIkeyId
-                       "Content-Type" = "application/json"}
+
+$passportalData.token = Get-PassportalAuthToken -identifier $passportalData.identifier
+write-host $passportalData.token
+
+$passportalData.headers = @{
+    'x-key'        = $apiKey
+    'x-hash'       = $xHash
+    'Content-Type' = 'application/json'
+}
+
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
@@ -38,9 +50,6 @@ foreach ($objType in $passportalData.Requested) {
     write-host "Fetching $objType from Passportal"
     $PassportalData.Fetched[$objType] = Get-PassportalObjects -ObjectType $objType
     Write-Host "Got $($PassportalData.Fetched[$objType].Count) $objType"
-    foreach ($obj in $PassportalData.Fetched[$objType]) {
-        write-host "$($($($obj ?? @{}) | ConvertTo-Json -depth 88).ToString())"
-    }
 }
 
 

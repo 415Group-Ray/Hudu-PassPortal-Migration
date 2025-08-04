@@ -1,4 +1,44 @@
 
+function Get-PassportalAuthToken {
+param (
+    [string]$apiKey = $passportalData.APIkeyid,
+    [string]$apiSecret = $passportalData.APIkey,
+    [string]$identifier,
+    [string]$scope = 'global'
+)
+# Body parameters
+$content = "$scope$identifier"
+# Construct body
+$body = @{
+    scope      = $scope
+    content    = $content
+    identifier = $identifier
+} | ConvertTo-Json -Compress
+
+# Create HMAC-SHA256 signature
+$utf8Encoding = [System.Text.Encoding]::UTF8
+$keyBytes = $utf8Encoding.GetBytes($apiSecret)
+$contentBytes = $utf8Encoding.GetBytes($content)
+$hmac = New-Object System.Security.Cryptography.HMACSHA256
+$hmac.Key = $keyBytes
+$hashBytes = $hmac.ComputeHash($contentBytes)
+$xHash = [BitConverter]::ToString($hashBytes) -replace '-', '' | ForEach-Object { $_.ToLower() }
+
+# Define headers
+$headers = @{
+    'x-key'        = $apiKey
+    'x-hash'       = $xHash
+    'Content-Type' = 'application/json'
+}
+
+# Make the request
+return $(Invoke-RestMethod -Uri 'https://your.passportal.api/authorization' `
+                              -Method Post `
+                              -Headers $headers `
+                              -Body $body)
+
+}
+
 function Get-PassportalLeafArrays {
     param (
         [Parameter(Mandatory)]

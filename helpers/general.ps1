@@ -166,7 +166,7 @@ function Select-ObjectFromList($objects,$message,$allowNull = $false) {
             } elseif ($null -ne $object.name) {
                 Write-Host "$($i+1): $($object.name)"
             } else {
-                Write-Host "$($i+1): $($object)"
+                Write-Host "$($i+1): $($($object).ToString())"
             }
         }
         $choice = Read-Host $message
