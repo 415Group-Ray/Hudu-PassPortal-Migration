@@ -8,6 +8,7 @@ $passportalData = @{
     Identifier = $($passporatalData_Identifier ?? $(read-host "please enter your identifier (email)"))
     Token = $null
     Headers = @{}
+    BaseURL = $null
 }
 
 
@@ -17,7 +18,7 @@ $passportalData = @{
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
-$BaseUri = "https://$($SelectedLocation.APIBase).passportalmsp.com/api/v2/"
+$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com"
 # $BaseUri = "https://api.passportalmsp.com/v4"
 
 # Set-Up
@@ -26,14 +27,13 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     . $file.FullName
 }
 
-$passportalData.token = Get-PassportalAuthToken -identifier $passportalData.identifier
-write-host $passportalData.token
+$authResult = Get-PassportalAuthToken -apiKey $passportalData.APIKeyId `
+                                      -apiSecret $passportalData.APIKey `
+                                      -identifier $passportalData.Identifier `
+                                      -scope "global"
 
-$passportalData.headers = @{
-    'x-key'        = $apiKey
-    'x-hash'       = $xHash
-    'Content-Type' = 'application/json'
-}
+$passportalData.Token = $authResult.token
+$passportalData.Headers = $authResult.headers
 
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"

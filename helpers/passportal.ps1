@@ -1,44 +1,41 @@
-
 function Get-PassportalAuthToken {
-param (
-    [string]$apiKey = $passportalData.APIkeyid,
-    [string]$apiSecret = $passportalData.APIkey,
-    [string]$identifier,
-    [string]$scope = 'global'
-)
-# Body parameters
-$content = "$scope$identifier"
-# Construct body
-$body = @{
-    scope      = $scope
-    content    = $content
-    identifier = $identifier
-} | ConvertTo-Json -Compress
+    param (
+        [string]$apiKey,
+        [string]$apiSecret,
+        [string]$identifier,
+        [string]$scope = 'global'
+    )
 
-# Create HMAC-SHA256 signature
-$utf8Encoding = [System.Text.Encoding]::UTF8
-$keyBytes = $utf8Encoding.GetBytes($apiSecret)
-$contentBytes = $utf8Encoding.GetBytes($content)
-$hmac = New-Object System.Security.Cryptography.HMACSHA256
-$hmac.Key = $keyBytes
-$hashBytes = $hmac.ComputeHash($contentBytes)
-$xHash = [BitConverter]::ToString($hashBytes) -replace '-', '' | ForEach-Object { $_.ToLower() }
+    $content = "$scope$identifier"
+    $body = @{
+        content    = $content
+        identifier = $identifier
+    } | ConvertTo-Json -Compress
 
-# Define headers
-$headers = @{
-    'x-key'        = $apiKey
-    'x-hash'       = $xHash
-    'Content-Type' = 'application/json'
+    $utf8Encoding = [System.Text.Encoding]::UTF8
+    $keyBytes = $utf8Encoding.GetBytes($apiSecret)
+    $contentBytes = $utf8Encoding.GetBytes($content)
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256
+    $hmac.Key = $keyBytes
+    $hashBytes = $hmac.ComputeHash($contentBytes)
+    $xHash = [BitConverter]::ToString($hashBytes) -replace '-', '' | ForEach-Object { $_.ToLower() }
+
+    $headers = @{
+        'x-key'        = $apiKey
+        'x-hash'       = $xHash
+        'Content-Type' = 'application/json'
+    }
+
+    $response = Invoke-RestMethod -Uri "$($passportalData.BaseURL)/api/v2/auth/client_token" `
+                                  -Method Post `
+                                  -Headers $headers `
+                                  -Body $body
+
+    return @{
+        token  = $response.token
+        headers = $headers
+    }
 }
-
-# Make the request
-return $(Invoke-RestMethod -Uri 'https://your.passportal.api/authorization' `
-                              -Method Post `
-                              -Headers $headers `
-                              -Body $body)
-
-}
-
 function Get-PassportalLeafArrays {
     param (
         [Parameter(Mandatory)]
@@ -64,7 +61,7 @@ function Get-PassportalObjects {
         [Parameter(Mandatory)][string]$ObjectType
     )
 
-    $uri = "$BaseUri/$($ObjectType.ToLower())"
+    $uri = "$($passportalData.BaseURL)/$($ObjectType.ToLower())"
     Write-Host "Requesting $ObjectType from $uri"
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.requestHeaders
