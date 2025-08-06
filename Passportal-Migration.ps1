@@ -1,25 +1,15 @@
 $workdir = $PSScriptRoot
 # --- CONFIGURATION ---
 $passportalData = @{
-    Requested = @("folders", "passwords", "clients", "companies")
-    Fetched = @{}
-    APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")")
-    APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
-    Identifier = $($passporatalData_Identifier ?? $(read-host "please enter your identifier (email)"))
-    Token = $null
-    Headers = @{}
-    BaseURL = $null
+    Requested = @("folders", "passwords", "clients", "companies"); Fetched = @{}
+    APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
+    Token = $null; Headers = @{}; BaseURL = $null
 }
 
-
-
-
-
-$sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders")
+$sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
-$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com"
-# $BaseUri = "https://api.passportalmsp.com/v4"
+$passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/api/v2"
 
 # Set-Up
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
@@ -27,11 +17,7 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     . $file.FullName
 }
 
-$authResult = Get-PassportalAuthToken `
-    -apiKey $passportalData.APIKeyId `
-    -apiSecret $passportalData.APIKey `
-    -identifier $passportalData.Identifier 
-    
+$authResult = Get-PassportalAuthToken    
 $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 
@@ -51,8 +37,6 @@ foreach ($objType in $passportalData.Requested) {
     $PassportalData.Fetched[$objType] = Get-PassportalObjects -ObjectType $objType
     Write-Host "Got $($PassportalData.Fetched[$objType].Count) $objType"
 }
-
-
 
 Write-Host "Unsetting vars before next run."
 # foreach ($var in $sensitiveVars) {
