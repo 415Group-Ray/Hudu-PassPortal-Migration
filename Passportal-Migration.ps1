@@ -43,29 +43,58 @@ $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $cs
 
 $SourceDataIDX=0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
+$DetailedDocumentsById = @{}
+
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
-
         $page = 1
         while ($true) {
             $queryParams = @{
-                type=$doctype
-                orderBy="label"
-                orderDir="asc"
-                clientId=$client.id
-                resultsPerPage=1000
-                pageNum=$page
+                type = $doctype
+                orderBy = "label"
+                orderDir = "asc"
+                clientId = $client.id
+                resultsPerPage = 1000
+                pageNum = $page
             }
-            $resourceURI = "documents/all?$(ConvertTo-QueryString -QueryParams $queryParams)"
 
+            $resourceURI = "documents/all?$(ConvertTo-QueryString -QueryParams $queryParams)"
             $response = Get-PassportalObjects -resource $resourceURI
             $results = $response.results
 
-            if (-not $results -or $null -eq $results -or "$results".ToLower() -eq 'null' -or -not $response.success -or -not $true -eq $response.success) {
-                $SourceDataIDX = $SourceDataIDX+1
+            if (-not $results -or -not $response.success -or "$results".ToLower() -eq 'null') {
+                $SourceDataIDX++
                 $completionPercentage = Get-PercentDone -current $SourceDataIDX -Total $SourceDataTotal
-                Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage    
+                Write-Progress -Activity "Fetching $doctype for $($client.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
                 break
+            }
+
+            $results = @($results)
+
+            # Enrich each document with fields
+            foreach ($doc in $results) {
+                if ($null -eq $doc -or -not $doc.PSObject.Properties.Match("id")) {
+                    Write-Warning "Skipping blank document"
+                    continue
+                }
+
+                $docId = $doc.id
+
+                if (-not $DetailedDocumentsById.ContainsKey($docId)) {
+                    try {
+                        $detailed = Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" `
+                                                       -Headers $passportalData.Headers -Method Get
+                        $DetailedDocumentsById[$docId] = $detailed
+                    } catch {
+                        Write-Warning "Failed to fetch detail for $docId- $($_.Exception.Message)"
+                        $DetailedDocumentsById[$docId] = @{}
+                        continue
+                    }
+                }
+
+                $fields = $DetailedDocumentsById[$docId].fields ?? @{}
+                $doc | Add-Member -NotePropertyName 'fields' -NotePropertyValue $fields -Force
+
             }
 
             $passportalData.Documents += [pscustomobject]@{
@@ -76,6 +105,7 @@ foreach ($doctype in $passportalData.docTypes) {
                 page        = $page
                 data        = $results
             }
+
             $page++
         }
     }
@@ -118,7 +148,8 @@ foreach ($resource in $HuduData.Resources) {
     $completionPercentage = Get-PercentDone -current $resourceIDX -Total $HuduData.Resources.count
     Write-Progress -Activity "Obtaining Data from Hudu... Resource- $($resource.name)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
     $result = & $resource.request
-    $HuduData.Data[$resource.name] = $($result ?? @())
+    $HuduData.Data[$resource.name] =$HuduData.Data[$resource.name] ?? @()
+    if ($result) {$HuduData.Data[$resource.name]+=$result}
 }
 $alwaysCreateCompanies=$false
 $companiesTable = @{}
@@ -161,7 +192,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
         $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
         if (-not $matchedLayout) {
             Write-Host "Creating new layout for $layoutName"
-            New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
+            $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
                 -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
                 -fields $(Get-PassportalFieldMapForType -Type $doctype)
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
