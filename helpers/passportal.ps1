@@ -17,8 +17,7 @@ function Get-PassportalAuthToken {
     return @{
         token   = $response.access_token
         refresh_token = $response.refresh_token
-        headers = @{ 'x-access-token' = $response.access_token 
-                      'accept' = 'application/json'}
+        headers = @{ 'x-access-token' = $response.access_token }
     }
 
 }
@@ -58,16 +57,15 @@ function Get-PassportalObjects {
         [Parameter(Mandatory)][string]$resource
     )
 
-    $uri = "$($passportalData.BaseURL)api/v2/$($resource.ToLower())"
+    $uri = "$($passportalData.BaseURL)api/v2/$resource"
     try {
-        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.requestHeaders
+        $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.Headers
         return $response
     } catch {
+        Write-Warning "Error fetching $uri $($_.Exception.Message)"
         return $null
     }
 }
-
-
 
 # --- RECURSIVELY FLATTEN TO PSCUSTOMOBJECTS ---
 function Get-FlatPassportalData {
