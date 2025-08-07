@@ -339,3 +339,29 @@ function Get-SafeTitle {
     $safe = ($safe -replace '\s{2,}', ' ').Trim()
     return $safe
 }
+function Set-Capitalized {
+    param([string]$text)
+    if ([string]::IsNullOrWhiteSpace($text)) { return $text }
+    return $text.Substring(0,1).ToUpper() + $text.Substring(1)
+}
+
+$LocAssetLayoutFields = @(
+    @{
+        label        = 'Address'
+        field_type   = 'Text'
+        show_in_list = 'true'
+        position     = 1
+    },
+    @{
+        label        = 'Description'
+        field_type   = 'RichText'
+        show_in_list = 'true'
+        position     = 2
+    },    
+    @{
+        label        = 'PassPortal ID'
+        field_type   = 'text'
+        show_in_list = 'false'
+        position     = 4
+    }    
+)

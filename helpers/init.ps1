@@ -51,8 +51,10 @@ $RunSummary=@{
     JobInfo=@{
         MigrationSource     = [System.Collections.ArrayList]@()
         MigrationDest       = [PSCustomObject]@{}
-        sites               = [System.Collections.ArrayList]@()
-        pages               = [System.Collections.ArrayList]@()
+        AttriutionOptions   = [System.Collections.ArrayList]@(
+            @{Id=-1; Name="Skip (Don't Import)"}
+            @{Id= 0; Name="Create New"}
+        )
         sitescount          = 0
         pagescount          = 0
         LinksCreated        = 0

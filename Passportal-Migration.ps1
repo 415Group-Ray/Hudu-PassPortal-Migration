@@ -1,7 +1,9 @@
 $workdir = $PSScriptRoot
-# --- CONFIGURATION ---
+### CONFIGURATION
+##
+#
 $passportalData = @{
-    docTypes = @("asset","active_directory","application","backup","email","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
+    docTypes = @("asset","active_directory","application","backup","email","folders","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
     APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
     Token = $null; Headers = @{}; BaseURL = $null; clients=@(); Documents =@(); csvData = @{}
 }
@@ -13,16 +15,13 @@ $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $fal
 Write-Host "using $($selectedLocation.name) / $BaseUri for PassPortal"
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
-# Set-Up
+### SETUP
+##
+#
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-
-$authResult = Get-PassportalAuthToken    
-$passportalData.Token = $authResult.token
-$passportalData.Headers = $authResult.headers
-write-host $passportalData.Token
 Set-Content -Path $logFile -Value "Starting Passportal Migration" 
 Set-PrintAndLog -message "Checked Powershell Version... $(Get-PSVersionCompatible)" -Color DarkBlue
 Set-PrintAndLog -message "Imported Hudu Module... $(Get-HuduModule)" -Color DarkBlue
@@ -30,66 +29,21 @@ Set-PrintAndLog -message "Checked Hudu Credentials... $(Set-HuduInstance)" -Colo
 Set-PrintAndLog -message "Checked Hudu Version... $(Get-HuduVersionCompatible)" -Color DarkBlue
 Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
+### LOAD SOURCEDATA
+##
+#
+$authResult = Get-PassportalAuthToken    
+$passportalData.Token = $authResult.token
+$passportalData.Headers = $authResult.headers
+write-host $passportalData.Token
+
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
 foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
-Write-Host "Checking .\exported-csvs folder for Passportal exports..."
-foreach ($file in Get-ChildItem -Path ".\exported-csvs" -Filter "*.csv" -File | Sort-Object Name) {
-    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
-
-    $fullPath = $file.FullName
-    $firstLine = (Get-Content -Path $fullPath -TotalCount 1).Trim()
-
-    # Check if the first line appears to be a header
-    $hasHeader = $firstLine -match 'PassPortal ID'
-
-    if ($file.Name -like "*clients.csv") {
-        $csv = if ($hasHeader) {
-            Import-Csv -Path $fullPath
-        } else {
-            Import-Csv -Path $fullPath -Header "PassPortal ID","Name","Email"
-        }
-        $passportalData.csvData['clients'] = $csv
-    } elseif ($file.Name -like "*passwords.csv") {
-        $csv = if ($hasHeader) {
-            Import-Csv -Path $fullPath
-        } else {
-            Import-Csv -Path $fullPath -Header "Passportal ID","Client Name","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
-        }
-        $passportalData.csvData['passwords'] = $csv
-    } elseif ($file.Name -like "*users.csv") {
-        $csv = if ($hasHeader) {
-            Import-Csv -Path $fullPath
-        } else {
-            Import-Csv -Path $fullPath -Header "Passportal ID (BLANK)","Last Name","First Name","Email","Phone"
-
-        }
-        $passportalData.csvData['users'] = $csv
-    } elseif ($file.Name -like "*vault.csv") {
-        $csv = if ($hasHeader) {
-            Import-Csv -Path $fullPath
-        } else {
-            Import-Csv -Path $fullPath -Header "Passportal ID","Credential","Username","Password","Description","Expires (Yes/No)","Notes","URL","Folder(Optional)"
-        }
-        $passportalData.csvData['vault'] = $csv
-    }        
-}
-
-if ($(Select-ObjectFromList -objects @("all-clients","select-clients") -message "Would you like transfer data from all clients, or a slect list of clients") -eq "all-clients"){
-    $RunSummary.JobInfo.MigrationSource.AddRange($passportalData.Clients)
-} else {
-    foreach ($client in $passportalData.Clients) {
-        if ($(Select-ObjectFromList -objects @("yes","no") -message "Would you like to include data from client $($client.ID): $($client.Name) in this transfer to Hudu?") -eq "yes"){
-            $RunSummary.JobInfo.MigrationSource.add($client)
-        } else {
-            Write-Host "Opted to not transfer data from client $($client.ID): $($client.Name)"
-        }
-    }
-}
+Get-CSVExportData -exportsFolder $(Join-Path $workdir "exported-csvs")
 if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
     Write-Host "No clients selected for Migration Source. Exiting."
     exit
 }
-
 foreach ($doctype in $passportalData.docTypes) {
     foreach ($client in $passportalData.Clients) {
         $page = 1
@@ -120,21 +74,113 @@ foreach ($doctype in $passportalData.docTypes) {
                 page        = $page
                 data        = $results
             }
-
             $page++
         }
     }
 }
-
 if (-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1){
     Write-Host "Couldnt fetch any viable documents. Ensure Passportal API service is running and try again."
-
+    exit
 }
-
-
 foreach ($obj in $passportaldata.Documents){
     Write-Host "$($obj.doctype) for $($obj.client): $(Write-InspectObject -object $obj.data)"
 }
+$passportaldata.Documents | ConvertTo-Json -Depth 45 | Out-File "export.json"
+
+
+### LOAD DESTDATA and determine import path
+##
+#
+Write-Host "obtaining dest info!"
+$HuduData = @{
+    Resources = @(
+        @{name="companies"; request="Get-HuduCompanies"},
+        @{name="assets"; request="Get-HuduAssets"},
+        @{name="articles"; request="Get-HuduArticles"},
+        @{name="websites"; request="Get-HuduWebsites"},
+        @{name="assetlayouts"; request="Get-HuduAssetLayouts"},
+        @{name="articles"; request="Get-HuduArticles"},
+        @{name="passwords"; request="Get-HuduArticles"},
+        @{name="folders"; request="Get-HuduArticles"},
+        @{name="passwordfolders"; request="Get-HuduArticles"},
+        @{name="lists"; request="Get-HuduLists"},
+        @{name="procedures"; request="Get-HuduProcedures"}
+    )
+    Data = @{}
+    AssetLayoutNames = @{}
+}
+
+foreach ($resource in $HuduData.Resources) {
+    $result = & $resource.request
+    $HuduData.Data[$resource.name] = $($result ?? @())
+}
+$companiesTable = @{}
+foreach ($huduCompany in $Hududata.Data.companies){
+    $runSummary.JobInfo.AttriutionOptions.Add(@{Id=$huducompany.id; Name="$($huducompany.Name)"})
+    $companiesTable[$huducompany.id]=$huducompany
+}
+$HuduData.AssetLayoutNames = $HuduData.Data.AssetLayouts
+if (-not $HuduData.AssetLayoutNames -contains "Location" -or -not $HuduData.AssetLayoutNames -contains "Locations"){
+    $newLocationLayout = New-Huduassetlayout -name "Locations" -icon "fas fa-$NewIcon" -color "#00adef" -icon_color "#ffffff" -include_passwords $true -include_photos $true -include_comments $true -include_files $true -fields $LocAssetLayoutFields 
+    $HuduData.AssetLayoutNames+=$newLocationLayout.asset_layout.name
+    $HuduData.Data.assetlayouts+=$newLocationLayout.asset_layout
+}
+
+
+
+
+
+foreach ($PPcompany in $passportalData.Clients) {
+    $MatchedCompany  = Select-ObjectFromList -objects $Hududata.Data.companies -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false
+    if ($MatchedCompany.id -eq -1) {
+        write-host "Skipping $($PPcompany.name) per user request."
+        continue
+    }
+    if ($MatchedCompany.id -eq  0) {
+        write-host "Creating new Company, "
+        $MatchedCompany = New-HuduCompany -Name $PPcompany.name
+    }
+    foreach ($doctype in $passportalData.docTypes) {
+        $ObjectsForTransfer =  $passportaldata.Documents | Where-Object { $_.data.type -eq $doctype -and $_.client.id -eq $PPCompany.id}
+        if ($null -eq $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1){
+            write-host "Skipping doctype $doctype transfer for $($ppcompany.name). None present in export/dump"
+            continue
+        }
+        $layoutName = Capitalize-First $doctype
+        $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
+
+        if (-not $matchedLayout) {
+            Write-Host "Creating new layout for $layoutName"
+            $fields = Get-PassportalFieldMapForType -Type $doctype  # <- Your field map logic
+            $newLayout = New-HuduAssetLayout -name $layoutName -icon "fas fa-$NewIcon" -color "#00adef" -icon_color "#ffffff" -include_passwords $true -include_photos $true -include_comments $true -include_files $true -fields $fields
+            $HuduData.Data.assetlayouts += $newLayout.asset_layout
+            $matchedLayout = $newLayout.asset_layout
+        }
+        if ($doctype -eq "location")
+            foreach ($location in $ObjectsForTransfer) {
+                New-HuduAsset -name $location.label -companyId $MatchedCompany.id -fields @(
+                    @{"Address"             =  $location.data.label},
+                    @{"Description"         =  $location.data.description},
+                    @{"PassPortal ID"       =  $location.data.id})
+            }
+        }
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
