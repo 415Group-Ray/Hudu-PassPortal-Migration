@@ -43,18 +43,16 @@ function Get-PassportalLeafArrays {
 # --- MAIN FUNCTION TO FETCH AND FLATTEN ---
 function Get-PassportalObjects {
     param (
-        [Parameter(Mandatory)][string]$ObjectType,
-        
+        [Parameter(Mandatory)][string]$resource
     )
 
-    $uri = "$($passportalData.BaseURL)api/v2/$($ObjectType.ToLower())"
-    Write-Host "Requesting $ObjectType from $uri"
+    $uri = "$($passportalData.BaseURL)api/v2/$($resource.ToLower())"
+    Write-Host "Requesting $resource from $uri"
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.requestHeaders
-        $flat = Get-FlatPassportalData -Data $response
-        return $flat
+        return $response
     } catch {
-        Write-Warning "Failed to get $ObjectType. $_"
+        Write-Warning "Failed to get $resource. $_"
         return @()
     }
 }

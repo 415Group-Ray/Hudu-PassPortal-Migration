@@ -1,3 +1,5 @@
 environ*.ps1
 *environment*
 !environ.example
+exported-csvs/*/
+exported-csvs/*

@@ -1,9 +1,9 @@
 $workdir = $PSScriptRoot
 # --- CONFIGURATION ---
 $passportalData = @{
-    Requested = @("folders", "passwords", "clients", "companies"); Fetched = @{}
+    docTypes = @( "asset","active_directory","application","backup","email","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
     APIkey = $($passportalData_APIkey ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($passportalData_APIkeyId ?? "$(read-host "please enter your Passportal API key")")
-    Token = $null; Headers = @{}; BaseURL = $null; clients=@()
+    Token = $null; Headers = @{}; BaseURL = $null; clients=@(); documents =@(); csvData = @()
 }
 
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
@@ -32,6 +32,27 @@ Set-IncrementedState -newState "Check Source data and get Source Data Options"
 
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get -Verbose).results
 foreach ($client in $passportalData.Clients) {Write-Host "found $($client.id)- $($client.name)"}
+Write-Host "Checking .\exported-csvs folder for Passportal exports..."
+foreach ($file in Get-ChildItem -Path ".\exported-csvs" -Filter "*.csv" -File | Sort-Object Name) {
+    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
+
+    $fullPath = $file.FullName
+    $firstLine = (Get-Content -Path $fullPath -TotalCount 1).Trim()
+
+    # Check if the first line appears to be a header
+    $hasHeader = $firstLine -match 'PassPortal ID'
+
+    if ($file.Name -like "*clients.csv") {
+        $csv = if ($hasHeader) {
+            Import-Csv -Path $fullPath
+        } else {
+            # Provide fallback headers if missing
+            Import-Csv -Path $fullPath -Header "PassPortal ID","Name","Email","OtherField"
+        }
+
+        $passportalData.csvData['Clients'] = $csv
+    }
+}
 
 if ($(Select-ObjectFromList -objects @("all-clients","select-clients") -message "Would you like transfer data from all clients, or a slect list of clients") -eq "all-clients"){
     $RunSummary.JobInfo.MigrationSource.AddRange($passportalData.Clients)
@@ -49,12 +70,9 @@ if ($RunSummary.JobInfo.MigrationSource.Count -lt 1){
     exit
 }
 
-# --- Example usage ---
-foreach ($objType in $passportalData.Requested) {
-    write-host "Fetching $objType from Passportal"
-    $PassportalData.Fetched[$objType] = Get-PassportalObjects -ObjectType $objType
-    Write-Host "Got $($PassportalData.Fetched[$objType].Count) $objType"
-}
+write-host "Fetching $objType from Passportal"
+$PassportalData.documents = Get-PassportalObjects -resource "documents"
+
 
 Write-Host "Unsetting vars before next run."
 # foreach ($var in $sensitiveVars) {
