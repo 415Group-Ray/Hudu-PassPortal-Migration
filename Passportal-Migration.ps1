@@ -72,28 +72,22 @@ foreach ($doctype in $passportalData.docTypes) {
                 break
             }
 
-            $Details = @{}
-
+            $details = @()
             foreach ($doc in $results) {
-                if (-not $doc.id) { continue }
                 $docId = $doc.id
+                if (-not $docId) { continue }
+                    $detail = $null
+                    $detail=[pscustomobject]@{
+                        ID=$docId
+                        Fields=$(try {$(Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" -Headers $passportalData.Headers -Method Get).details
+                                } catch {
+                                Write-Warning "Failed to fetch detailed doc $docId... $($_.Exception.Message)"
+                                $null
+                        })}
 
-                if (-not $Details.ContainsKey($docId)) {
-                    $detail = try {
-                        Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" `
-                                          -Headers $passportalData.Headers -Method Get
-                    } catch {
-                        Write-Warning "Failed to fetch detailed doc $docId... $($_.Exception.Message)"
-                        $null
-                    }
-
-                    $Details[$docId] = $detail
-
-                    $fields = $detail?.fields ?? @{}
-                    $doc | Add-Member -NotePropertyName 'fields' -NotePropertyValue $fields -Force
+                    $Details+=$detail
                 }
-            }
-
+            
             $passportalData.Documents += [pscustomobject]@{
                 queryParams = $queryParams
                 resourceURI = $resourceURI
@@ -101,9 +95,8 @@ foreach ($doctype in $passportalData.docTypes) {
                 client      = $client
                 page        = $page
                 data        = $results
-                details     = $Details
+                details     = $details
             }
-
             $page++
         }
     }
@@ -116,7 +109,7 @@ if (-not $passportaldata.Documents -or $passportaldata.Documents.Count -lt 1){
 foreach ($obj in $passportaldata.Documents){
     Write-Host "$($obj.doctype) for $($obj.client): $(Write-InspectObject -object $obj.data)"
 }
-$(ConvertTo-PlainHashtable -input $passportalData.Documents) | ConvertTo-Json -Depth 45 | Out-File "export.json"
+$passportalData.documents | ConvertTo-json -depth 88 | Out-File "export.json"
 
 
 ### LOAD DESTDATA and determine import strategy
