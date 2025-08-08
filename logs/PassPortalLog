@@ -1,0 +1,17 @@
+Starting Passportal Migration
+[2025-08-08 16:20:02] Checked Powershell Version... 
+[2025-08-08 16:20:03] Imported Hudu Module... 
+[2025-08-08 16:20:04] Checked Hudu Credentials... 
+[2025-08-08 16:20:04] Checked Hudu Version... True
+[2025-08-08 16:20:04] Authentication Result Successful
+[2025-08-08 16:20:04] found 41610794- 
+[2025-08-08 16:20:04] found 41609738- 
+[2025-08-08 16:20:04] found 41610798- 
+[2025-08-08 16:20:04] found 41610774- 
+[2025-08-08 16:20:04] found 41610782- 
+[2025-08-08 16:20:04] found 41610790- 
+[2025-08-08 16:20:04] Checking .\exported-csvs folder for Passportal exports...
+[2025-08-08 16:20:04] Importing: clients.csv
+[2025-08-08 16:20:04] Importing: passwords.csv
+[2025-08-08 16:20:04] Importing: users.csv
+[2025-08-08 16:20:04] Importing: vault.csv

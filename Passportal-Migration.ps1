@@ -37,7 +37,7 @@ $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
-foreach ($client in $passportalData.Clients) {Set-PrintAndLog -message  "found $($client.id)- $($client.name)" -Color DarkCyan}
+foreach ($client in $passportalData.Clients) {$client.name = Get-HTTPDecodedString -input $client.name; Set-PrintAndLog -message  "found $($client.id)- $($client.name)" -Color DarkCyan}
 $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"})
 
 $SourceDataIDX = 0
@@ -107,7 +107,7 @@ $passportalData.documents | ConvertTo-json -depth 88 | Out-File "export.json"
 ### LOAD DESTDATA and determine import strategy
 ##
 #
-Set-PrintAndLog -message "obtaining data from Hudu @$(Get-HuduBaseURL)!" -Color DarkCyan
+Set-PrintAndLog -message "obtaining data from Hudu $(Get-HuduBaseURL)!" -Color DarkCyan
 $HuduData = @{
     Resources = @(
         @{name="companies"; request="Get-HuduCompanies"},
@@ -164,6 +164,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
     if ($MatchedCompany.id -eq  0) {
         Set-PrintAndLog -message  "Creating new Company, $($PPcompany.name)" -Color DarkCyan
         $MatchedCompany = New-HuduCompany -Name $PPcompany.name
+        Set-PrintAndLog -message "Created new company $($(Write-InspectObject -object $MatchedCompany))"
         $runSummary.JobInfo.AttriutionOptions.Add($matchedCompany)
     }
     Set-PrintAndLog -message  "Company set to $($MatchedCompany.name) for $($ppcompany.name)" -Color DarkCyan
@@ -183,6 +184,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
             $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
                 -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
                 -fields $(Get-PassportalFieldMapForType -Type $doctype)
+            Set-PrintAndLog -message "LayoutFields: $(Write-InspectObject -object $(Get-PassportalFieldMapForType -Type $doctype))" -Color DarkMagenta
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
@@ -191,9 +193,9 @@ foreach ($PPcompany in $PassportalData.Clients) {
             $docFields = $passportalData.documents.details | Where-Object { $_.ID -eq $Document.data.id }
             $fieldMap = Get-PassportalFieldMapForType -Type $doctype
             $formattedFields = $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -sourceFields $docFields -docId $obj.id)
-            Set-PrintAndLog -message "DocFields: $(Write-InspectObject -object $docFields)" -Color DarkCyan
-            Set-PrintAndLog -message  "fieldMap: $(Write-InspectObject -object $fieldMap)" -Color DarkCyan
-            Set-PrintAndLog -message  "formattedFields: $(Write-InspectObject -object $formattedFields)" -Color DarkCyan
+            Set-PrintAndLog -message "DocFields: $(Write-InspectObject -object $docFields)" -Color DarkMagenta
+            Set-PrintAndLog -message  "fieldMap: $(Write-InspectObject -object $fieldMap)" -Color DarkMagenta
+            Set-PrintAndLog -message  "formattedFields: $(Write-InspectObject -object $formattedFields)" -Color DarkMagenta
             read-host
             
             New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
@@ -203,6 +205,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
     }
 }
 
+foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
 
 
 

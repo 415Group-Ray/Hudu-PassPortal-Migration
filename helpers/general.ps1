@@ -12,6 +12,49 @@ function Unset-Vars {
         }
     }
 }
+function Get-HTTPDecodedString {
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline)]
+        [string]$Input
+    )
+
+    if ([string]::IsNullOrEmpty($Input)) { return $Input }
+    $output = $Input
+    try {
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            $output = [System.Net.WebUtility]::UrlDecode($output)
+        } else {
+            Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue
+            $output = [System.Web.HttpUtility]::UrlDecode($output)
+        }
+    } catch { }
+    try {
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            $output = [System.Net.WebUtility]::HtmlDecode($output)
+        } else {
+            $output = [System.Web.HttpUtility]::HtmlDecode($output)
+        }
+    } catch { }
+    $map = @{
+        '%20' = ' '
+        '%26' = '&'
+        '%27' = "'"
+    }
+    foreach ($k in $map.Keys) { $output = $output.Replace($k, $map[$k]) }
+    $second = $output
+    try {
+        if ($PSVersionTable.PSEdition -eq 'Core') {
+            $second = [System.Net.WebUtility]::HtmlDecode([System.Net.WebUtility]::UrlDecode($second))
+        } else {
+            $second = [System.Web.HttpUtility]::HtmlDecode([System.Web.HttpUtility]::UrlDecode($second))
+        }
+    } catch { }
+    if ($second -ne $output) { $output = $second }
+
+    return $output
+}
+
 
 function Write-InspectObject {
     param (

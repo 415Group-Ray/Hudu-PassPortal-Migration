@@ -1,23 +1,3 @@
-<<<<<<< HEAD
-function Set-PassportalData {
-
-    $passportalData = @{
-        Requested = @("folders", "passwords", "clients", "companies"); Fetched = @{}
-        APIkey = $($passportalData_SecretKeyID ?? "$(read-host "please enter your Passportal API key")"); SecretAccessKey = $($passportalData_SecretAccessKey ?? "$(read-host "please enter your Passportal API key")")
-        Token = $null; Headers = @{}; BaseURL = $null
-    }
-    $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
-    $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
-
-    $authResult = Get-PassportalAuthToken    
-    $passportalData.Token = $authResult.token
-    $passportalData.Headers = $authResult.headers
-    return $passportalData
-}
-
-
-=======
->>>>>>> c05642d806775e28df04367a71183de628311dbb
 
 function Get-PassportalAuthToken {
     param (
@@ -25,14 +5,14 @@ function Get-PassportalAuthToken {
         [string]$presharedSecret = "aUa&&XUQBJXz2x&"
     )
     $SHAObject = New-Object System.Security.Cryptography.HMACSHA256
-    $SHAObject.key = [Text.Encoding]::ASCII.GetBytes($passportalData.SecretAccessKey)
+    $SHAObject.key = [Text.Encoding]::ASCII.GetBytes($passportalData.APIkeyId)
     $signature = $SHAObject.ComputeHash([Text.Encoding]::ASCII.GetBytes($PresharedSecret))
     $StringifiedHash = [System.BitConverter]::ToString($signature).Replace('-', '').ToLower()
-    $response = Invoke-RestMethod -Headers @{'X-KEY'  = $passportalData.SecretKeyID; 'X-HASH' = $StringifiedHash} `
+    $response = Invoke-RestMethod -Headers @{'X-KEY'  = $passportalData.APIkey; 'X-HASH' = $StringifiedHash} `
                 -Uri "https://$($selectedLocation.APIBase).passportalmsp.com/api/v2/auth/client_token" -Method POST `
                 -Body @{'content' = $PresharedSecret; 'scope'   = "$scope"} `
                 -ContentType "application/x-www-form-urlencoded"
-    write-host "Authentication Result $(if ($response -and $response.success -and $true -eq $response.success) {'Successful'} else {'Failure'})"
+    Set-PrintAndLog -message "Authentication Result $(if ($response -and $response.success -and $true -eq $response.success) {'Successful'} else {'Failure'})"  -Color DarkBlue
 
     return @{
         token   = $response.access_token
@@ -55,19 +35,10 @@ function ConvertTo-QueryString {
 
 function Get-PassportalObjects {
     param (
-<<<<<<< HEAD
-        [Parameter(Mandatory)][string]$ObjectType,
-        [int]$resultsPerPage=1000
-    )
-
-    $uri = "$($passportalData.BaseURL)/api/v2/$ObjectType/clients?resultsPerPage=$resultsPerPage"
-    Write-Host "Requesting $ObjectType from $uri"
-=======
         [Parameter(Mandatory)][string]$resource
     )
 
     $uri = "$($passportalData.BaseURL)api/v2/$resource"
->>>>>>> c05642d806775e28df04367a71183de628311dbb
     try {
         $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $passportalData.Headers
         return $response
@@ -82,9 +53,9 @@ function Get-CSVExportData {
         [string]$exportsFolder
     )
 
-    Write-Host "Checking .\exported-csvs folder for Passportal exports..."
+    Set-PrintAndLog -message "Checking .\exported-csvs folder for Passportal exports..." -Color DarkBlue
     foreach ($file in Get-ChildItem -Path $exportsFolder -Filter "*.csv" -File | Sort-Object Name) {
-        Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
+        Set-PrintAndLog -message "Importing: $($file.Name)" -Color DarkBlue
         $csvData=@{}
         $fullPath = $file.FullName
         $firstLine = (Get-Content -Path $fullPath -TotalCount 1).Trim()
