@@ -1,22 +1,22 @@
 Starting Passportal Migration
-[2025-08-08 18:27:06] Checked Powershell Version... 
-[2025-08-08 18:27:07] Imported Hudu Module... 
-[2025-08-08 18:27:07] Checked Hudu Credentials... 
-[2025-08-08 18:27:07] Checked Hudu Version... True
-[2025-08-08 18:27:07] Authentication Result Successful
-[2025-08-08 18:27:07] found 41610794-  Diglett Excavation
-[2025-08-08 18:27:07] found 41609738-  Hudu Technologies
-[2025-08-08 18:27:07] found 41610798-  Matt's Museum of Marbles
-[2025-08-08 18:27:07] found 41610774-  Needy Nancy
-[2025-08-08 18:27:07] found 41610782-  Randy Randall's Random Cars
-[2025-08-08 18:27:07] found 41610790-  WorldWideWarbler Bird Sanctuary
-[2025-08-08 18:27:08] Checking .\exported-csvs folder for Passportal exports...
-[2025-08-08 18:27:08] Importing: clients.csv
-[2025-08-08 18:27:08] Importing: passwords.csv
-[2025-08-08 18:27:08] Importing: users.csv
-[2025-08-08 18:27:08] Importing: vault.csv
-[2025-08-08 18:27:30] Fetched 22 Documents
-[2025-08-08 18:27:30] asset for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:13] Checked Powershell Version... 
+[2025-08-08 19:44:15] Imported Hudu Module... 
+[2025-08-08 19:44:16] Checked Hudu Credentials... 
+[2025-08-08 19:44:16] Checked Hudu Version... True
+[2025-08-08 19:44:16] Authentication Result Successful
+[2025-08-08 19:44:16] found 41610794-  Diglett Excavation
+[2025-08-08 19:44:16] found 41609738-  Hudu Technologies
+[2025-08-08 19:44:16] found 41610798-  Matt's Museum of Marbles
+[2025-08-08 19:44:16] found 41610774-  Needy Nancy
+[2025-08-08 19:44:16] found 41610782-  Randy Randall's Random Cars
+[2025-08-08 19:44:16] found 41610790-  WorldWideWarbler Bird Sanctuary
+[2025-08-08 19:44:16] Checking .\exported-csvs folder for Passportal exports...
+[2025-08-08 19:44:16] Importing: clients.csv
+[2025-08-08 19:44:16] Importing: passwords.csv
+[2025-08-08 19:44:16] Importing: users.csv
+[2025-08-08 19:44:16] Importing: vault.csv
+[2025-08-08 19:44:37] Fetched 22 Documents
+[2025-08-08 19:44:37] asset for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182486,
   "organization_id": 27186,
@@ -31,7 +31,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:42:18Z"
 }
-[2025-08-08 18:27:30] active_directory for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] active_directory for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182314,
   "organization_id": 27186,
@@ -46,7 +46,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:07:35Z"
 }
-[2025-08-08 18:27:30] application for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] application for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182322,
@@ -63,7 +63,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:09:31Z"
   },
 ... (truncated)
-[2025-08-08 18:27:30] backup for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] backup for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182334,
   "organization_id": 27186,
@@ -78,7 +78,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:12:48Z"
 }
-[2025-08-08 18:27:31] email for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] email for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182458,
   "organization_id": 27186,
@@ -93,7 +93,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:36:15Z"
 }
-[2025-08-08 18:27:31] file_sharing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] file_sharing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182454,
   "organization_id": 27186,
@@ -108,7 +108,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:35:19Z"
 }
-[2025-08-08 18:27:31] contact for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] contact for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182406,
   "organization_id": 27186,
@@ -123,7 +123,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:26:18Z"
 }
-[2025-08-08 18:27:31] location for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] location for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182414,
   "organization_id": 27186,
@@ -138,7 +138,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:29:22Z"
 }
-[2025-08-08 18:27:31] internet for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] internet for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182450,
@@ -155,7 +155,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:34:32Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] lan for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] lan for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182434,
@@ -172,7 +172,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:32:53Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] printing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] printing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182358,
   "organization_id": 27186,
@@ -187,7 +187,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:16:46Z"
 }
-[2025-08-08 18:27:31] remote_access for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] remote_access for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182366,
   "organization_id": 27186,
@@ -202,7 +202,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:19:34Z"
 }
-[2025-08-08 18:27:31] vendor for @{id=41610794; name=Diglett Excavation; decodedName=Diglett Excavation}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41610794; name=Diglett Excavation; decodedName=Diglett Excavation}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -219,7 +219,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] vendor for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -236,7 +236,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] vendor for @{id=41610798; name=Matt&#039;s Museum of Marbles; decodedName=Matt's Museum of Marbles}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41610798; name=Matt&#039;s Museum of Marbles; decodedName=Matt's Museum of Marbles}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -253,7 +253,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] vendor for @{id=41610774; name=Needy Nancy; decodedName=Needy Nancy}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41610774; name=Needy Nancy; decodedName=Needy Nancy}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -270,7 +270,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] vendor for @{id=41610782; name=Randy Randall&#039;s Random Cars; decodedName=Randy Randall's Random Cars}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41610782; name=Randy Randall&#039;s Random Cars; decodedName=Randy Randall's Random Cars}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -287,7 +287,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] vendor for @{id=41610790; name=WorldWideWarbler Bird Sanctuary; decodedName=WorldWideWarbler Bird Sanctuary}: # Type: System.Object[]
+[2025-08-08 19:44:37] vendor for @{id=41610790; name=WorldWideWarbler Bird Sanctuary; decodedName=WorldWideWarbler Bird Sanctuary}: # Type: System.Object[]
 [
   {
     "id": 31182422,
@@ -304,7 +304,7 @@ Starting Passportal Migration
     "last_modified": "2025-08-01T18:30:09Z"
   },
 ... (truncated)
-[2025-08-08 18:27:31] virtualization for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] virtualization for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182370,
   "organization_id": 27186,
@@ -319,7 +319,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:22:09Z"
 }
-[2025-08-08 18:27:31] voice for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:37] voice for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182374,
   "organization_id": 27186,
@@ -334,7 +334,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:22:53Z"
 }
-[2025-08-08 18:27:31] wireless for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:38] wireless for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182398,
   "organization_id": 27186,
@@ -349,7 +349,7 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:24:49Z"
 }
-[2025-08-08 18:27:31] licencing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
+[2025-08-08 19:44:38] licencing for @{id=41609738; name=Hudu Technologies; decodedName=Hudu Technologies}: # Type: System.Object[]
 {
   "id": 31182410,
   "organization_id": 27186,
@@ -364,48 +364,10 @@ Starting Passportal Migration
   "accessible": true,
   "last_modified": "2025-08-01T18:27:57Z"
 }
-[2025-08-08 18:27:35] Found 6 Companies to Match for In Hudu
-[2025-08-08 18:27:37] Company set to Hudu Technologies for Diglett Excavation
-[2025-08-08 18:27:37] Starting doctype asset for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype active_directory for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype application for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype backup for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype email for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype folders for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype file_sharing for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype contact for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype location for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:37] Starting doctype internet for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype lan for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype printing for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype remote_access for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype vendor for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype virtualization for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype voice for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype wireless for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype licencing for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype custom for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:38] Starting doctype ssl for 0 docs transfer for Diglett Excavation. None present in export/dump
-[2025-08-08 18:27:39] Company set to Diglett Excavation for Hudu Technologies
-[2025-08-08 18:27:39] Skipping Empty doctype asset transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype active_directory transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype application transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype backup transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype email transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Starting doctype folders for 0 docs transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype file_sharing transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype contact transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype location transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype internet transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype lan transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype printing transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype remote_access transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype vendor transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype virtualization transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype voice transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype wireless transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Skipping Empty doctype licencing transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Starting doctype custom for 0 docs transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:39] Starting doctype ssl for 0 docs transfer for Hudu Technologies. None present in export/dump
-[2025-08-08 18:27:42] Skipping Matt's Museum of Marbles per user request.
-[2025-08-08 18:27:44] Creating new Company, Needy Nancy
+[2025-08-08 19:44:42] Found 6 Companies to Match for In Hudu
+[2025-08-08 19:44:45] Company set to Hudu Technologies for Diglett Excavation
+[2025-08-08 19:44:46] Company set to Diglett Excavation for Hudu Technologies
+[2025-08-08 19:46:04] Company set to Diglett Excavation for Matt's Museum of Marbles
+[2025-08-08 19:46:05] Creating new Company, Needy Nancy
+[2025-08-08 19:46:11] Created new company 
+[2025-08-08 19:46:11] Company set to  for Needy Nancy

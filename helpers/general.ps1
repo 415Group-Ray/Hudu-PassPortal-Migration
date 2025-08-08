@@ -12,6 +12,19 @@ function Unset-Vars {
         }
     }
 }
+function Get-ContainsStringInsensitive {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$String,
+
+        [Parameter(Mandatory)]
+        [string]$Substring
+    )
+
+    return [string]::IndexOf($String, $Substring, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
 function Get-HTTPDecodedString {
   param([Parameter(ValueFromPipeline)][string]$InputString)
   if ($null -eq $InputString) { return $null }

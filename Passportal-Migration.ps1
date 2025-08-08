@@ -170,51 +170,41 @@ foreach ($PPcompany in $PassportalData.Clients) {
     foreach ($doctype in $passportalData.docTypes) {
         write-host "Starting doctype $doctype"
         
-        $ObjectsForTransfer = $passportaldata.Documents.data | where-object {$_.type -eq $doctype -and $($_.client_id -eq $PPcompany.id -or $_.clientName -eq $PPcompany.decodedName)}
-        $eligibleForMigrations=$(-not $ObjectsForTransfer -or $ObjectsForTransfer.count -lt 1)
-        Set-PrintAndLog -message  "$(if ($false -eq $eligibleForMigrations) {"Skipping Empty doctype $doctype"} else {"Starting doctype $doctype for $($ObjectsForTransfer.count) docs"}) transfer for $($ppcompany.name). None present in export/dump"  -Color DarkCyan
-        if ($false -eq $eligibleForMigrations) {continue} 
+        $ObjectsForTransfer = $passportaldata.Documents  | where-object {$_.data.type -eq $doctype -and $($_.data.client_id -eq $PPcompany.id -or $_.data.clientName -eq $PPcompany.decodedName)}
         # Match layout in hudu to doctype in Passportal. Create if not in Hudu
         $layoutName = Set-Capitalized $doctype
         $matchedLayout = $HuduData.Data.assetlayouts | Where-Object { $_.name -eq $layoutName }
         $fieldMap = Get-PassportalFieldMapForType -Type $doctype
         if (-not $matchedLayout) {
             Set-PrintAndLog -message  "Creating new layout for $layoutName with fields $($($fieldMap | convertto-json -depth 66).ToString())" -Color DarkCyan
-            
-            
             $newLayout = New-HuduAssetLayout -name $layoutName -icon $($PassportalLayoutDefaults[$docType]).icon -color "#300797ff" -icon_color "#bed6a9ff" `
                 -include_passwords $true -include_photos $true -include_comments $true -include_files $true `
                 -fields $fieldMap
             $HuduData.Data.assetlayouts += $newLayout.asset_layout
             $matchedLayout = $newLayout.asset_layout
         }
+        
+
         # Create new asset for each doc in type
         foreach ($obj in $ObjectsForTransfer) {
-            $docFields = $null
-            foreach ($detail in $obj.details) {
-                if ($detail.ID -eq $obj.data.id){
-                    $docFields = $detail.Fields
-                    break
-                }
-            }
-            $docFields = $($docFields ?? 
-                $(try {
-                    $(Invoke-RestMethod -Uri "$($passportalData.BaseURL)api/v2/documents/$docId" -Headers $passportalData.Headers -Method Get).details.Fields
-                } catch {$null}))
 
-            if ($docFields -eq $null) {
-                Write-Host "No auxilliary details / field info for doc, adding as-is"
-                New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
-                    -companyId $MatchedCompany.id -AssetLayoutId $matchedLayout.id `
-                    -fields @()                
-            } else {
-                $formattedFields = $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -sourceFields $docFields -docId $obj.id)
+            $data = $obj.data[0]
 
-                
-                New-HuduAsset -name "$($obj.data.label ?? $obj.data.name ?? $obj.data.title ?? "Unnamed $doctype")" `
-                    -companyId $MatchedCompany.id -AssetLayoutId $matchedLayout.id `
-                    -fields $formattedFields
+            $fields = $obj.details[0].Fields ?? @()
+
+            $formattedFields = $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -sourceFields $fields -docId $data.id)
+            $requestParams = @{
+                name            = $data.label
+                companyId       = $MatchedCompany.Id
+                AssetLayoutId   = $matchedLayout.id
+                Fields          = $formattedFields
             }
+            if ($formattedFields -and $formattedFields.Count -gt 0) {
+                $requestParams['fields'] = $formattedFields
+            }
+            Write-host "creating $($data.label) with request params $($($requestParams | convertto-json -depth 45).ToString())"
+
+            New-HuduAsset @requestParams
         }
     }
 }

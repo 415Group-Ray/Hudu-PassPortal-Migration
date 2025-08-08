@@ -247,6 +247,7 @@ function Get-PassportalFieldMapForType {
     }
     return $fields
 }
+
 function Build-HuduFieldsFromDocument {
     param (
         [Parameter(Mandatory)] [array]$FieldMap,
@@ -254,30 +255,40 @@ function Build-HuduFieldsFromDocument {
         [int]$docId
     )
 
-    $fieldValues = @{}
-    if (-not $sourceFields) {
-        Write-Warning "No detail entry found for document ID $docId"
-        return @{}
+    Write-Host "Building+Populating Fields for doc $docId"
+    if (-not $sourceFields) { Write-Warning "No detail entry found for document ID $docId"; return @{} }
+
+    # Normalize PSCustomObject -> hashtable
+    $src = if ($sourceFields -is [System.Collections.IDictionary]) {
+        $sourceFields
+    } else {
+        $h=@{}
+        $sourceFields.PSObject.Properties | ForEach-Object { $h[$_.Name] = $_.Value }
+        $h
     }
 
-    $sourceFields
+    $fieldValues = @{}
 
     foreach ($fieldDef in $FieldMap) {
         $label = $fieldDef.label
+        Write-Host $label
 
-        if ($sourceFields.ContainsKey($label)) {
-            $value = $sourceFields[$label]
+        if ($src.ContainsKey($label)) {
+            $value = $src[$label]
 
-            if ($value -is [hashtable] -and $value.ContainsKey("value")) {
-                $actualValue = $value.value.text
-            } else {
-                $actualValue = $value
-            }
+            # handle nested shapes safely
+            $actualValue =
+                if ($value -is [System.Collections.IDictionary] -and $value.ContainsKey('value')) {
+                    # try value.text, fallback to value
+                    if ($value['value'] -is [System.Collections.IDictionary] -and $value['value'].ContainsKey('text')) {
+                        $value['value']['text']
+                    } else { $value['value'] }
+                } else { $value }
 
             $fieldValues[$label] = $actualValue
         }
     }
 
-    $fieldValues["PassPortalID"] = $docId
+    $fieldValues['PassPortalID'] = $docId
     return $fieldValues
 }
