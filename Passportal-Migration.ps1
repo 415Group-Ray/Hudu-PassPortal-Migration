@@ -37,9 +37,8 @@ $passportalData.Token = $authResult.token
 $passportalData.Headers = $authResult.headers
 
 $passportalData.Clients = $(Invoke-RestMethod -Headers $passportalData.Headers -Uri "$($passportalData.BaseURL)api/v2/documents/clients?resultsPerPage=1000" -Method Get).results
-foreach ($client in $passportalData.Clients) {$client.name = Get-HTTPDecodedString -input $client.name; Set-PrintAndLog -message  "found $($client.id)- $($client.name)" -Color DarkCyan}
+foreach ($client in $passportalData.clients) {$client | Add-Member -NotePropertyName decodedName -NotePropertyValue $(Get-HTTPDecodedString $client.name) -Force; Set-PrintAndLog -message  "found $($client.id)- $($client.name); (decoded name $($client.decodedName))" -Color DarkCyan}
 $passportalData.csvData = Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"})
-
 $SourceDataIDX = 0
 $SourceDataTotal = $passportalData.docTypes.Count * $passportalData.Clients.Count
 

@@ -1,17 +1,17 @@
 Starting Passportal Migration
-[2025-08-08 16:20:02] Checked Powershell Version... 
-[2025-08-08 16:20:03] Imported Hudu Module... 
-[2025-08-08 16:20:04] Checked Hudu Credentials... 
-[2025-08-08 16:20:04] Checked Hudu Version... True
-[2025-08-08 16:20:04] Authentication Result Successful
-[2025-08-08 16:20:04] found 41610794- 
-[2025-08-08 16:20:04] found 41609738- 
-[2025-08-08 16:20:04] found 41610798- 
-[2025-08-08 16:20:04] found 41610774- 
-[2025-08-08 16:20:04] found 41610782- 
-[2025-08-08 16:20:04] found 41610790- 
-[2025-08-08 16:20:04] Checking .\exported-csvs folder for Passportal exports...
-[2025-08-08 16:20:04] Importing: clients.csv
-[2025-08-08 16:20:04] Importing: passwords.csv
-[2025-08-08 16:20:04] Importing: users.csv
-[2025-08-08 16:20:04] Importing: vault.csv
+[2025-08-08 16:44:46] Checked Powershell Version... 
+[2025-08-08 16:44:47] Imported Hudu Module... 
+[2025-08-08 16:44:48] Checked Hudu Credentials... 
+[2025-08-08 16:44:48] Checked Hudu Version... True
+[2025-08-08 16:44:48] Authentication Result Successful
+[2025-08-08 16:44:48] found 41610794- Diglett Excavation; (decoded name Diglett Excavation)
+[2025-08-08 16:44:48] found 41609738- Hudu Technologies; (decoded name Hudu Technologies)
+[2025-08-08 16:44:48] found 41610798- Matt&#039;s Museum of Marbles; (decoded name Matt's Museum of Marbles)
+[2025-08-08 16:44:48] found 41610774- Needy Nancy; (decoded name Needy Nancy)
+[2025-08-08 16:44:48] found 41610782- Randy Randall&#039;s Random Cars; (decoded name Randy Randall's Random Cars)
+[2025-08-08 16:44:48] found 41610790- WorldWideWarbler Bird Sanctuary; (decoded name WorldWideWarbler Bird Sanctuary)
+[2025-08-08 16:44:48] Checking .\exported-csvs folder for Passportal exports...
+[2025-08-08 16:44:48] Importing: clients.csv
+[2025-08-08 16:44:48] Importing: passwords.csv
+[2025-08-08 16:44:48] Importing: users.csv
+[2025-08-08 16:44:48] Importing: vault.csv
