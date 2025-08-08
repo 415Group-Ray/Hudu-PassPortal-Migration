@@ -325,6 +325,7 @@ function Get-TopLevelFieldforAsset {
                 write-host "Found optional asset property $($prop.name) = $($prop.resolved)"
             }
         }
+        
     return $props
 
 }
@@ -536,37 +537,19 @@ function Build-HuduCustomFields {
 
         if ($HuduValuesByLabel.ContainsKey($label)) {
             $raw = $HuduValuesByLabel[$label]
+            $value = $raw.value
+            $extractedext = $value.text ?? $null
 
-            # --- Passportal value extraction ---
-            if ($null -ne $raw) {
-                if ($raw.PSObject.Properties['value']) {
-                    $val = $raw.value
-
-                    if ($val -is [psobject] -or $val -is [hashtable]) {
-                        # Prefer .text if present
-                        if ($val.PSObject.Properties['text'] -and $val.text) {
-                            $raw = $val.text
-                        }
-                        # Otherwise, fall back to .id
-                        elseif ($val.PSObject.Properties['id'] -and $val.id) {
-                            $raw = $val.id
-                        }
-                        else {
-                            $raw = $val
-                        }
-                    }
-                    else {
-                        $raw = $val
-                    }
-                }
-            }
-            # -----------------------------------
-
-            if ($null -ne $raw -and ($raw -ne '' -or $raw -isnot [string])) {
-                $list.Add(@{ $key = $raw })
+            if ($null -ne $extractedext -and ($extractedext -ne '' -or $extractedext -isnot [string])) {
+                $list.Add(@{ $key = $extractedext })
             }
         }
     }
+    foreach ($val in $list){
+        $val
+
+    }
+
 
     return @($list)
 }

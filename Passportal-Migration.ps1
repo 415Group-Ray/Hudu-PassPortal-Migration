@@ -213,7 +213,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
             $data = $obj.data[0]
 
-            $fields = $obj.details[0].Fields ??  $obj.details[0].Fields[0] ?? @()
+            $fields = $obj.details[0].Fields ?? @()
 
             $newAsset = Get-TopLevelFieldforAsset -data $data `
                                                   -doctype $doctype `
