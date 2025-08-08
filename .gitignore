@@ -5,3 +5,7 @@ exported-csvs/*/
 exported-csvs/*
 export.json
 *export.json
+logs\PassPortalLog
+logs\*
+logs\errored\*
+logs\errored
