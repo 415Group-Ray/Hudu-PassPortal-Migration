@@ -190,27 +190,37 @@ foreach ($PPcompany in $PassportalData.Clients) {
 
             $data = $obj.data[0]
 
-            $fields = $obj.details[0].Fields ?? @()
+            $fields = $obj.details[0].Fields ??  $obj.details[0].Fields[0] ?? @()
 
-            $formattedFields = $(Build-HuduFieldsFromDocument -FieldMap $fieldMap -sourceFields $fields -docId $data.id)
-            $requestParams = @{
-                name            = $data.label
-                companyId       = $MatchedCompany.Id
-                AssetLayoutId   = $matchedLayout.id
-                Fields          = $formattedFields
-            }
-            if ($formattedFields -and $formattedFields.Count -gt 0) {
-                $requestParams['fields'] = $formattedFields
-            }
-            Write-host "creating $($data.label) with request params $($($requestParams | convertto-json -depth 45).ToString())"
+            $newAsset = Get-TopLevelFieldforAsset -data $data `
+                                                  -doctype $doctype `
+                                                  -layoutId $matchedLayout.id `
+                                                  -companyId $MatchedCompany.id `
+                                                  -fields $fields
+            Write-Host "New Asset $(Get-JsonString $newAsset)"
 
-            New-HuduAsset @requestParams
+            $ppIndex = Get-NormalizedPassportalFields -ppFields $fields
+            Write-Host "ppIndex $(Get-JsonString $ppIndex)"
+
+            $mappedValues = Set-PPToHuduFieldValues -FieldMap $fieldMap -PPIndex $ppIndex
+            Write-Host "mappedValues $(Get-JsonString $mappedValues)"
+
+            $customFields = Build-HuduCustomFields -FieldMap $fieldMap -HuduValuesByLabel $mappedValues
+            Write-Host "customFields $(Get-JsonString $customFields)"
+
+            if ($customFields -and $customFields.count -gt 0) {
+                $newAsset["fields"] = $customFields
+            }
+            Write-Host "creating asset $(Get-JsonString $newAsset)"
+
+            New-HuduAsset @newAsset
         }
     }
 }
 
 Set-IncrementedState -newState "Import and match passwords from CSV data"
 
+Set-IncrementedState -newState "Import and match websites from SSL data"
 
 
 

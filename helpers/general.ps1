@@ -367,3 +367,16 @@ function Set-Capitalized {
     if ([string]::IsNullOrWhiteSpace($text)) { return $text }
     return $text.Substring(0,1).ToUpper() + $text.Substring(1)
 }
+
+
+function Get-JsonString {
+    param (
+        $object
+    )
+    try {
+        $value= "$($($object | convertto-json -depth 90).ToString())"
+    } catch {
+        $value = "$($object)"
+    }
+    return $value
+}
