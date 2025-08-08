@@ -9,3 +9,4 @@ logs\PassPortalLog
 logs\*
 logs\errored\*
 logs\errored
+*export.json

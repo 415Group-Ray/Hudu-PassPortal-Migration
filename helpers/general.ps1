@@ -12,6 +12,7 @@ function Unset-Vars {
         }
     }
 }
+<<<<<<< HEAD
 function Get-ContainsStringInsensitive {
     [CmdletBinding()]
     param(
@@ -32,6 +33,9 @@ function Get-HTTPDecodedString {
   $s = [System.Net.WebUtility]::HtmlDecode($s)
   return $s
 }
+=======
+
+>>>>>>> c05642d806775e28df04367a71183de628311dbb
 function Write-InspectObject {
     param (
         [object]$object,
@@ -374,6 +378,7 @@ function Set-Capitalized {
     if ([string]::IsNullOrWhiteSpace($text)) { return $text }
     return $text.Substring(0,1).ToUpper() + $text.Substring(1)
 }
+<<<<<<< HEAD
 
 
 function Get-JsonString {
@@ -387,3 +392,5 @@ function Get-JsonString {
     }
     return $value
 }
+=======
+>>>>>>> c05642d806775e28df04367a71183de628311dbb
