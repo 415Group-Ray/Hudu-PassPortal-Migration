@@ -12,7 +12,26 @@ function Unset-Vars {
         }
     }
 }
+function Get-ContainsStringInsensitive {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$String,
 
+        [Parameter(Mandatory)]
+        [string]$Substring
+    )
+
+    return [string]::IndexOf($String, $Substring, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+}
+
+function Get-HTTPDecodedString {
+  param([Parameter(ValueFromPipeline)][string]$InputString)
+  if ($null -eq $InputString) { return $null }
+  $s = [System.Net.WebUtility]::UrlDecode($InputString)
+  $s = [System.Net.WebUtility]::HtmlDecode($s)
+  return $s
+}
 function Write-InspectObject {
     param (
         [object]$object,
@@ -158,6 +177,13 @@ $propertyDump
     }
 }
 
+function Convert-ToSnakeCase {
+    param([Parameter(Mandatory)][string]$Text)
+    $t = $Text.Trim()
+    # collapse spaces/punctuation -> underscore, lower-case
+    $t = ($t -replace '[^A-Za-z0-9]+','_').Trim('_').ToLowerInvariant()
+    return $t
+}
 
 function Save-HtmlSnapshot {
     param (
@@ -215,48 +241,51 @@ function Set-PrintAndLog {
     }
     Add-Content -Path $LogFile -Value $logline
 }
-function Select-ObjectFromList($objects,$message,$allowNull = $false) {
-    $validated=$false
-    while ($validated -eq $false){
-        if ($allowNull -eq $true) {
+function Select-ObjectFromList($objects, $message, $inspectObjects = $false, $allowNull = $false) {
+    $validated = $false
+    while (-not $validated) {
+        if ($allowNull) {
             Write-Host "0: None/Custom"
         }
+
         for ($i = 0; $i -lt $objects.Count; $i++) {
             $object = $objects[$i]
-            if ($null -ne $object.OptionMessage) {
-                Write-Host "$($i+1): $($object.OptionMessage)"
+
+            $displayLine = if ($inspectObjects) {
+                "$($i+1): $(Write-InspectObject -object $object)"
+            } elseif ($null -ne $object.OptionMessage) {
+                "$($i+1): $($object.OptionMessage)"
             } elseif ($null -ne $object.name) {
-                Write-Host "$($i+1): $($object.name)"
+                "$($i+1): $($object.name)"
             } else {
-                Write-Host "$($i+1): $($($object).ToString())"
+                "$($i+1): $($object)"
             }
+
+            Write-Host $displayLine -ForegroundColor $(if ($i % 2 -eq 0) { 'Cyan' } else { 'Yellow' })
         }
+
         $choice = Read-Host $message
-        if ($null -eq $choice -or $choice -lt 0 -or $choice -gt $objects.Count +1) {
-            Set-PrintAndLog -message "Invalid selection. Please enter a number from above"
+
+        if (-not ($choice -as [int])) {
+            Write-Host "Invalid input. Please enter a number." -ForegroundColor Red
+            continue
         }
-        if ($choice -eq 0 -and $true -eq $allowNull) {
+
+        $choice = [int]$choice
+
+        if ($choice -eq 0 -and $allowNull) {
             return $null
         }
-        if ($null -ne $objects[$choice - 1]){
+
+        if ($choice -ge 1 -and $choice -le $objects.Count) {
             return $objects[$choice - 1]
-        }
-    }
-}
-function Get-YesNoResponse($message) {
-    do {
-        $response = Read-Host "$message (y/n)"
-        $response = if($null -ne $response) {$response.ToLower()} else {""}
-        if ($response -eq 'y' -or $response -eq 'yes') {
-            return $true
-        } elseif ($response -eq 'n' -or $response -eq 'no') {
-            return $false
         } else {
-            Set-PrintAndLog -message "Invalid input. Please enter 'y' for Yes or 'n' for No."
+            Write-Host "Invalid selection. Please enter a number from the list." -ForegroundColor Red
         }
     }
-    while ($true)
 }
+
+
 
 function Get-ArticlePreviewBlock {
     param (
@@ -344,4 +373,17 @@ function Set-Capitalized {
     param([string]$text)
     if ([string]::IsNullOrWhiteSpace($text)) { return $text }
     return $text.Substring(0,1).ToUpper() + $text.Substring(1)
+}
+
+
+function Get-JsonString {
+    param (
+        $object
+    )
+    try {
+        $value= "$($($object | convertto-json -depth 90).ToString())"
+    } catch {
+        $value = "$($object)"
+    }
+    return $value
 }

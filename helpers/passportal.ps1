@@ -12,7 +12,7 @@ function Get-PassportalAuthToken {
                 -Uri "https://$($selectedLocation.APIBase).passportalmsp.com/api/v2/auth/client_token" -Method POST `
                 -Body @{'content' = $PresharedSecret; 'scope'   = "$scope"} `
                 -ContentType "application/x-www-form-urlencoded"
-    write-host "Authentication Result $(if ($response -and $response.success -and $true -eq $response.success) {'Successful'} else {'Failure'})"
+    Set-PrintAndLog -message "Authentication Result $(if ($response -and $response.success -and $true -eq $response.success) {'Successful'} else {'Failure'})"  -Color DarkBlue
 
     return @{
         token   = $response.access_token
@@ -53,9 +53,9 @@ function Get-CSVExportData {
         [string]$exportsFolder
     )
 
-    Write-Host "Checking .\exported-csvs folder for Passportal exports..."
+    Set-PrintAndLog -message "Checking .\exported-csvs folder for Passportal exports..." -Color DarkBlue
     foreach ($file in Get-ChildItem -Path $exportsFolder -Filter "*.csv" -File | Sort-Object Name) {
-        Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
+        Set-PrintAndLog -message "Importing: $($file.Name)" -Color DarkBlue
         $csvData=@{}
         $fullPath = $file.FullName
         $firstLine = (Get-Content -Path $fullPath -TotalCount 1).Trim()
@@ -94,7 +94,7 @@ function Get-CSVExportData {
             $csvData['vault'] = $csv
         }        
     }
-
+    return $csvData
 }
 
 $PassportalLayoutDefaults = @{
@@ -247,6 +247,7 @@ function Get-PassportalFieldMapForType {
     }
     return $fields
 }
+
 function Build-HuduFieldsFromDocument {
     param (
         [Parameter(Mandatory)] [array]$FieldMap,
@@ -254,30 +255,318 @@ function Build-HuduFieldsFromDocument {
         [int]$docId
     )
 
-    $fieldValues = @{}
-    if (-not $sourceFields) {
-        Write-Warning "No detail entry found for document ID $docId"
-        return @{}
+    Write-Host "Building+Populating Fields for doc $docId"
+    if (-not $sourceFields) { Write-Warning "No detail entry found for document ID $docId"; return @{} }
+
+    # Normalize PSCustomObject -> hashtable
+    $src = if ($sourceFields -is [System.Collections.IDictionary]) {
+        $sourceFields
+    } else {
+        $h=@{}
+        $sourceFields.PSObject.Properties | ForEach-Object { $h[$_.Name] = $_.Value }
+        $h
     }
 
-    $sourceFields
+    $fieldValues = @{}
 
     foreach ($fieldDef in $FieldMap) {
         $label = $fieldDef.label
+        Write-Host $label
 
-        if ($sourceFields.ContainsKey($label)) {
-            $value = $sourceFields[$label]
+        if ($src.ContainsKey($label)) {
+            $value = $src[$label]
 
-            if ($value -is [hashtable] -and $value.ContainsKey("value")) {
-                $actualValue = $value.value.text
-            } else {
-                $actualValue = $value
-            }
+            # handle nested shapes safely
+            $actualValue =
+                if ($value -is [System.Collections.IDictionary] -and $value.ContainsKey('value')) {
+                    # try value.text, fallback to value
+                    if ($value['value'] -is [System.Collections.IDictionary] -and $value['value'].ContainsKey('text')) {
+                        $value['value']['text']
+                    } else { $value['value'] }
+                } else { $value }
 
             $fieldValues[$label] = $actualValue
         }
     }
 
-    $fieldValues["PassPortalID"] = $docId
+    $fieldValues['PassPortalID'] = $docId
     return $fieldValues
+}
+
+
+function Get-TopLevelFieldforAsset {
+    param (
+        [Parameter(Mandatory)]
+        $data,
+        [string]$doctype,
+        [int]$layoutId,
+        [int]$companyId,
+        [array]$fields
+    )   $name = $data.label ?? $obj.data[0].label ?? "Unnamed $doctype"
+        $email = $fields.webmail ?? $fields.email ?? $fields.email_address ?? $fields.support_email_address ?? $null
+        $mfg = $fields.manufacturer ?? $fields.manufactured ?? $fields.manufactured_by ?? $null
+        $model = $fields.model ?? $fields.version ?? $null
+        $serial = $fields.serial_number ?? $fields.serial ?? $null
+        $props =@{
+            AssetLayoutId = $layoutId
+            name      = $name
+            companyId = $companyId
+        }
+        $optionalProps = @(
+            @{name = "PrimaryMail"; resolved = $email.value.text}
+            @{name = "PrimaryModel"; resolved = $mfg.value.text}
+            @{name = "PrimaryManufacturer"; resolved = $model.value.text}
+            @{name = "PrimarySerial"; resolved = $serial.value.text}
+        )
+
+        foreach ($prop in $optionalProps) {
+            if ($prop.resolved -and -not $([string]::IsNullOrWhiteSpace($prop.resolved))) {
+                $props["$($prop.name)"] = $prop.resolved
+                write-host "Found optional asset property $($prop.name) = $($prop.resolved)"
+            }
+        }
+    return $props
+
+}
+
+
+function Get-NormalizedPassportalFields {
+    <#
+      Input: $ppFields = the PSCustomObject at details[0].Fields
+      Output: hashtable with:
+        - original Passportal keys (e.g. "backup_type") → coerced value
+        - also index by the human label when available (e.g. "Backup Type") → same value
+    #>
+    param([Parameter(Mandatory)] $ppFields)
+
+    # PSCustomObject -> hashtable
+    $h = @{}
+    $ppFields.PSObject.Properties | ForEach-Object {
+        $k = $_.Name
+        $v = $_.Value
+
+        if ($null -eq $v) { return }
+
+        # extract displayed text when nested
+        $val =
+            if ($v -is [System.Collections.IDictionary]) {
+                if ($v.ContainsKey('value')) {
+                    $valObj = $v['value']
+                    if ($valObj -is [System.Collections.IDictionary] -and $valObj.ContainsKey('text')) {
+                        $valObj['text']
+                    } else {
+                        $valObj
+                    }
+                } elseif ($v.ContainsKey('attribute')) {
+                    # attribute often an array of objects; pull text(s)
+                    $attrs = $v['attribute']
+                    if ($attrs -is [System.Collections.IEnumerable]) {
+                        @($attrs | ForEach-Object {
+                            if ($_ -is [System.Collections.IDictionary] -and $_.ContainsKey('text')) { $_['text'] } else { $_ }
+                        }) | Where-Object { $_ -ne $null -and $_ -ne '' }
+                    } else {
+                        $v
+                    }
+                } else {
+                    $v
+                }
+            } else {
+                $v
+            }
+
+        # index by original key
+        $h[$k] = $val
+
+        # also index by human label if present (e.g. Backup Type)
+        if ($v -is [System.Collections.IDictionary] -and $v.ContainsKey('name') -and $v['name']) {
+            $label = [string]$v['name']
+            $h[$label] = $val
+            # and by snake_case label for convenience
+            $h[(Convert-ToSnakeCase $label)] = $val
+        }
+    }
+
+    return $h
+}
+
+function Coerce-ForHudu {
+    param(
+        [Parameter(Mandatory)] $FieldDef,   # one item from your field map (label, field_type)
+        [Parameter(Mandatory)] $RawValue
+    )
+
+    if ($null -eq $RawValue) { return $null }
+
+    $ft = "$($FieldDef.field_type)".ToLower()
+
+    switch -regex ($ft) {
+        '^(text|richtext|string)$' { return "$RawValue" }
+        '^date$' {
+            $dt = $RawValue -as [datetime]
+            if ($dt) { return $dt.ToString('MM/dd/yyyy') } else { return "$RawValue" }
+        }
+        '^(bool|boolean)$' {
+            # accept true/false/1/0/yes/no
+            if ($RawValue -is [bool]) { return $RawValue }
+            $s = "$RawValue".Trim()
+            if ($s -match '^(true|yes|y|1)$') { return $true }
+            if ($s -match '^(false|no|n|0)$') { return $false }
+            return $false
+        }
+        '^(listselect|select)$' { return "$RawValue" }
+        '^(multiselect|listmulti)$' {
+            if ($RawValue -is [System.Collections.IEnumerable] -and -not ($RawValue -is [string])) { return @($RawValue) }
+            return ($RawValue -split '[;,]') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+        }
+        '^(number|int|integer|float|double)$' {
+            # try int, then double
+            if ($RawValue -as [int]) { return [int]$RawValue }
+            if ($RawValue -as [double]) { return [double]$RawValue }
+            return "$RawValue"
+        }
+        default { return $RawValue }
+    }
+}
+
+function Set-PPToHuduFieldValues {
+    <#
+      Maps Passportal normalized fields to your Hudu field map (labels/types).
+      Returns a hashtable keyed by Hudu *label* -> coerced value.
+    #>
+    param(
+        [Parameter(Mandatory)][array]$FieldMap,      # from Get-PassportalFieldMapForType
+        [Parameter(Mandatory)][hashtable]$PPIndex    # from Normalize-PassportalFields
+    )
+
+    $out = @{}
+
+    foreach ($f in $FieldMap) {
+        $label = $f.label
+        $snake = Convert-ToSnakeCase $label
+
+        # candidates: exact snake key, exact human label, exact PP key already snake (e.g. 'backup_type')
+        $candidates = @()
+        if ($PPIndex.ContainsKey($snake)) { $candidates += $PPIndex[$snake] }
+        if ($PPIndex.ContainsKey($label)) { $candidates += $PPIndex[$label] }
+        if ($PPIndex.ContainsKey($snake)) { $candidates += $PPIndex[$snake] }
+
+        # loose fallback: find first PP key whose name contains the snake label bits
+        if ($candidates.Count -eq 0) {
+            $hit = $PPIndex.Keys | Where-Object {
+                $_ -is [string] -and ($_ -replace '\s','') -match [regex]::Escape(($snake -replace '_',''))
+            } | Select-Object -First 1
+            if ($hit) { $candidates += $PPIndex[$hit] }
+        }
+
+        if ($candidates.Count -gt 0) {
+            $val = $candidates[0]
+            $out[$label] = Coerce-ForHudu -FieldDef $f -RawValue $val
+        }
+    }
+
+    return $out
+}
+function Get-PassportalValue {
+    param([Parameter(Mandatory)]$Node)
+
+    if ($null -eq $Node) { return $null }
+
+    # Arrays/lists → resolve each and join (or return array if you prefer)
+    if ($Node -is [System.Collections.IEnumerable] -and -not ($Node -is [string])) {
+        $vals = @()
+        foreach ($item in $Node) { $vals += (Get-PassportalValue $item) }
+        # If you want an array, return $vals; if you want a string:
+        return ($vals -join ', ')
+    }
+
+    # Objects/hashtables → check known wrappers in priority order
+    if ($Node -is [psobject] -or $Node -is [hashtable]) {
+        $p = $Node.PSObject.Properties
+
+        # 1) resolvedObject.value (your target)
+        if ($p.Match('resolvedObject')) {
+            $ro = $Node.resolvedObject
+            if ($ro -and ($ro.PSObject.Properties.Match('value'))) {
+                return (Get-PassportalValue $ro.value)
+            }
+        }
+        # Sometimes it's sent lowercase
+        if ($p.Match('resolvedobject')) {
+            $ro = $Node.resolvedobject
+            if ($ro -and ($ro.PSObject.Properties.Match('value'))) {
+                return (Get-PassportalValue $ro.value)
+            }
+        }
+
+        # 2) value.text or value.name or value (common pattern)
+        if ($p.Match('value')) {
+            $v = $Node.value
+            if ($v -is [psobject] -or $v -is [hashtable]) {
+                if ($v.PSObject.Properties.Match('text')) { return $v.text }
+                if ($v.PSObject.Properties.Match('name')) { return $v.name }
+            }
+            return $v
+        }
+
+        # 3) direct text/name fallbacks
+        if ($p.Match('text')) { return $Node.text }
+        if ($p.Match('name')) { return $Node.name }
+    }
+
+    # Primitives
+    return $Node
+}
+
+
+function Build-HuduCustomFields {
+    param(
+        [Parameter(Mandatory)][array]$FieldMap,
+        [Parameter(Mandatory)][hashtable]$HuduValuesByLabel
+    )
+
+    $list = New-Object System.Collections.Generic.List[hashtable]
+
+    foreach ($f in $FieldMap) {
+        $label = $f.label
+        $key   = if ($f.PSObject.Properties['key'] -and $f.key) { 
+                     $f.key 
+                 } else { 
+                     Convert-ToSnakeCase $label 
+                 }
+
+        if ($HuduValuesByLabel.ContainsKey($label)) {
+            $raw = $HuduValuesByLabel[$label]
+
+            # --- Passportal value extraction ---
+            if ($null -ne $raw) {
+                if ($raw.PSObject.Properties['value']) {
+                    $val = $raw.value
+
+                    if ($val -is [psobject] -or $val -is [hashtable]) {
+                        # Prefer .text if present
+                        if ($val.PSObject.Properties['text'] -and $val.text) {
+                            $raw = $val.text
+                        }
+                        # Otherwise, fall back to .id
+                        elseif ($val.PSObject.Properties['id'] -and $val.id) {
+                            $raw = $val.id
+                        }
+                        else {
+                            $raw = $val
+                        }
+                    }
+                    else {
+                        $raw = $val
+                    }
+                }
+            }
+            # -----------------------------------
+
+            if ($null -ne $raw -and ($raw -ne '' -or $raw -isnot [string])) {
+                $list.Add(@{ $key = $raw })
+            }
+        }
+    }
+
+    return @($list)
 }
