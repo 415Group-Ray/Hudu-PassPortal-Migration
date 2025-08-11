@@ -355,7 +355,7 @@ function Build-HuduFieldsFromDocument {
         }
     }
 
-    $fieldValues['PassPortalID'] = $docId
+    $fieldValues['PassPortalID'] = "$docId"
     return $fieldValues
 }
 

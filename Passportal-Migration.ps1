@@ -14,6 +14,10 @@ $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 
+$MatchedCompanies = @()
+$CreatedAssets = @()
+$CreatedPasswords = @()
+
 ### SETUP
 ##
 #
@@ -154,8 +158,6 @@ if ($Hududata.Data.companies.count -lt 1) {
 ##
 #
 Set-IncrementedState -newState "Transfer assets, companies, and layouts into hudu"
-$MatchedCompanies = @()
-$CreatedAssets = @()
 $TransferIDX=0
 $TransferredTotal = $passportalData.Clients.count
 foreach ($PPcompany in $PassportalData.Clients) {
@@ -164,12 +166,12 @@ foreach ($PPcompany in $PassportalData.Clients) {
     Write-Progress -Activity "Transferring items for $($PPcompany.decodedName)" -Status "$completionPercentage%" -PercentComplete $completionPercentage
 
     # Set, Match, Create, or Skip company
-    $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$(Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.name) to in Hudu?" -allowNull $false)})
+    $MatchedCompany=$(if ($true -eq $alwaysCreateCompanies) {@{Id= 0; Name="Create New"}} else {$(Select-ObjectFromList -objects $runSummary.JobInfo.AttriutionOptions -message "Which Company would you like to attribute PassPortal Company $($PPcompany.id)- $($PPcompany.decodedName) to in Hudu?" -allowNull $false)})
     if ($MatchedCompany.id -eq -1) {Set-PrintAndLog -message  "Skipping $($PPcompany.decodedName) per user request." -Color DarkCyan; continue}
     if ($MatchedCompany.id -eq  0) {
         Set-PrintAndLog -message  "Creating new Company, $($PPcompany.decodedName)" -Color DarkCyan
         try {
-            $MatchedCompany = New-HuduCompany -Name $PPcompany.decodedName
+            $MatchedCompany = $(New-HuduCompany -Name $PPcompany.decodedName).company
         } catch {
             Write-ErrorObjectsToFile -ErrorObject @{
                 Error = $_
@@ -183,10 +185,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
         Set-PrintAndLog -message  "No Company matched or selected for $($PPcompany.decodedName), skipping" -Color DarkCyan; continue
     } else {
         Set-PrintAndLog -message  "Company set to $($MatchedCompany.name) for $($ppcompany.decodedName)" -Color DarkCyan
-        $MatchedCompanies+=@{
-            PPcompany=$ppcompany
-            HuduCompany=$MatchedCompany
-        }
+        $MatchedCompanies+=@{PPcompany=$PPcompany; HuduCompany=$MatchedCompany}
     }
     # Migrate all doctypes for company, if no doctypes for company, skip for now
     foreach ($doctype in $passportalData.docTypes) {
@@ -240,6 +239,7 @@ foreach ($PPcompany in $PassportalData.Clients) {
                         HuduAsset = $createdasset
                         PPasset   = @{Data = $data; Fields = $fields}
                         MatchedLayout = $matchedLayout
+                        DocType = $doctype
                     }
                 } 
             } catch {
@@ -252,6 +252,10 @@ foreach ($PPcompany in $PassportalData.Clients) {
     }
 }
 
+Set-IncrementedState -newState "Set Layouts as active"
+foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
+
+
 Set-IncrementedState -newState "Import and match passwords from CSV data"
 $passportalData.csvData = $passportalData.csvData ?? $(Get-CSVExportData -exportsFolder $(if ($(test-path $csvPath)) {$csvPath} else {Read-Host "Folder for CSV exports from Passportal?"}))
 if ($null -eq $passportalData.csvData) {
@@ -260,11 +264,59 @@ if ($null -eq $passportalData.csvData) {
 $PasswordIDX=0
 foreach ($password in $passportalData.csvData.passwords) {
     $newCredential   = $passportalData.csvData.passwords[$PasswordIDX]
-    Write-Host "Starting $($newCredential.Credential) for $($newCredential.'Client Name')"
-    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $newCredential.'Client Name'} | Select-Object -First 1).HuduCompany
-    $MatchedAsset = $($CreatedAssets | Where-Object {$_.HuduAsset.company_id -eq $MatchedCompany.id -and $(Get-StringVariants $_.MatchedLayout.Name) -contains $_.newCredential.Credential} | Select-Object -First 1)
+    $credentialName = $(if (-not [string]::IsNullOrEmpty($newCredential.Description)) {$newCredential.Description} else {"$($newCredential.Credential) - $($newCredential.Username)"})
+    Write-Host "Starting $($credentialName) for $($newCredential.'Client Name')"
     
+    # Match Companyu
+    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $newCredential.'Client Name'} | Select-Object -First 1).HuduCompany
+    if (-not $MatchedCompany) {
+        $MatchedCompany = Select-ObjectFromList -objects $Hududata.Data.companies -message "Which company to match for new credential $(Get-JsonString $newCredential)"
+    }
+    
+    # Match Asset or Object
+    $matchedAsset = $null
+    $companyAssets = $CreatedAssets | Where-Object {$_.HuduAsset.compay_id -eq $MatchedCompany.id}
+    $MatchableAssets = $companyAssets | Where-Object {$(Get-StringVariants $_.DocType) -contains $newCredential.Credential}
+    if ($MatchableAssets.count -lt 1) {
+        $MatchableAssets = $companyAssets
+    } elseif ($MatchableAssets.count -eq 1){
+        $matchedAsset = $MatchableAssets | Select-Object -First 1
+    }
+    $MatchedAsset = $MatchedAsset ?? $(Select-ObjectFromList -objects $MatchableAssets -message "Which asset to match for new credential $(Get-JsonString $newCredential)? Select 0/skip to just attribute to company")
 
+    try {
+        $NewPassSplat= @{
+            CompanyId               = $matchedCompany.Id
+            Name                    = $credentialName
+        }
+        if (-not [string]::IsNullOrEmpty($newCredential.URL)){
+            $NewPassSplat["URL"] = $newCredential.URL
+        }
+        if (-not [string]::IsNullOrEmpty($newCredential.Username)){
+            $NewPassSplat["Username"] = $newCredential.Username
+        }
+        if (-not [string]::IsNullOrEmpty($newCredential.Description ?? $newCredential.Notes)){
+            $NewPassSplat["Description"] = $newCredential.Description ?? $newCredential.Notes
+        }
+        if ($null -ne $MatchedAsset){
+            $NewPassSplat["PasswordableId"] = $MatchedAsset.Id
+            $NewPassSplat["PasswordableType"] = 'Asset'
+        }
+        $NewPassword = New-HuduPassword @NewPassSplat
+        if ($null -ne $NewPassword){
+            $CreatedPasswords+=@{
+                HuduPassword        = $NewPassword
+                SourcePassword      = $newCredential
+                MatchedCompany      = $MatchedCompany
+                MatchedAsset        = $MatchedAsset
+            }
+        }
+    } catch {
+        Write-ErrorObjectsToFile -ErrorObject @{
+            Error = $_
+            During = "creating Password for $($MatchedCompany.name ?? "Not-Matched-Company")"
+        } -Name "PasswordCreate-$($MatchedCompany.Name)-$($NewCredential)"        
+    }
     $PasswordIDX=$PasswordIDX+1
 }
 
@@ -275,9 +327,8 @@ foreach ($password in $passportalData.csvData.passwords) {
 
 
 
-Set-IncrementedState -newState "Set Layouts as active, Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
-foreach ($layout in Get-HuduAssetLayouts) {Set-PrintAndLog -message "setting $($(Set-HuduAssetLayout -id $layout.id -Active $true).asset_layout.name) as active" -Color DarkMagenta }
-Set-PrintAndLog -message  ""
+Set-IncrementedState -newState "Wrap-Up, and Unsetting $($sensitiveVars.count) sensitive vars"
 foreach ($var in $sensitiveVars) {
+    Set-PrintAndLog -message  "Unset Sensitive Var $var"
     Unset-Vars -varname $var
 }
