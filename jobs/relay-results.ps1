@@ -7,7 +7,7 @@ Hudu Instance - $(Get-HuduBaseURL)
 Passportal Instance - $($passportalData.BaseURL)
 "@
 
-$DurationInfo = "Migration Completed $($RunSummary.CompletedStates) Major Tasks in $($RunSummary.SetupInfo.Duration.Hours) Hours, $($RunSummary.SetupInfo.Duration.Minutes) Minutes, and $($RunSummary.SetupInfo.Duration.Seconds) Seconds"
+$DurationInfo = "Migration Completed $($RunSummary.CompletedStates.count) Major Tasks with $($(Get-ChildItem -path $(Join-Path $workdir "logs\errored\")).count) Errors in $($RunSummary.SetupInfo.Duration.Hours) Hours, $($RunSummary.SetupInfo.Duration.Minutes) Minutes, and $($RunSummary.SetupInfo.Duration.Seconds) Seconds"
 
 $CompaniesResults=@"
 $($CreatedCompanies.Count) New Companies created in Hudu from $($passportalData.clients.Count) Clients found in Passportal.
@@ -25,12 +25,12 @@ Your Hudu instance now has a total of $($(Get-HuduAssets).Count) assets
 "@
 
 $Passwordsresults=@"
-$($passportalData.csvData.passwords.count) Passwords were found via CSV data and $CreatedPasswords were created in Hudu from them
+$($CreatedPasswords.count) were created in Hudu from $($passportalData.csvData.passwords.count) Passwords were found via CSV
 Your hudu instance now has a total of $($(Get-HuduPasswords).count) passwords available
 "@
 
 $SummaryIDX=0
 foreach ($summaryItem in @($ResultOverview, $DurationInfo, $CompaniesResults, $LayoutsResults, $assetResults, $Passwordsresults)){
     $SummaryIDX = $SummaryIDX+1
-    Set-PrintAndLog -message "$summaryItem" -Color $(if ($SummaryIDX % 2 -eq 0) { 'Cyan' } else { 'DarkCyan' })
+    Set-PrintAndLog -message "$summaryItem" -Color $(if ($SummaryIDX % 2 -eq 0) { 'DarkGreen' } else { 'DarkCyan' })
 }
