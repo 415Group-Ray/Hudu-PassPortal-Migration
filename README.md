@@ -87,7 +87,15 @@ You can choose to attribute the printed credential to any given asset that belon
 
 Each attributable item is listed with a number that is used for selection, and each attributable item is written with alternating colors for easy readability.
 
+### Wrap-Up
 
-## Todo
+After matching/adding passwords, you'll see some high-level information about your migration- specifically, how many assets, companies, passwords, layouts were both found in Passportal and created in Hudu
+
+ <img width="1512" height="426" alt="image" src="https://github.com/user-attachments/assets/f1fcbcaa-8a4e-4c67-9d5e-6eb93104b7cf" />
+
+If there are any errors that you encountered, a file corresponding to each will be found in:
+.\logs\errored
+Such error files are constructed so that they can be easily modified as-needed and a command can be re-issued without much trouble.
+
 
 
