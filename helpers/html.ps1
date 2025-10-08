@@ -27,6 +27,15 @@ url\(\s*(["']?)(?<u>[^)"']+)\1\s*\)
 '@,
   [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
 )
+function Get-NormalizedTitle {
+  param([string]$s)
+  if ([string]::IsNullOrWhiteSpace($s)) { return '' }
+  $s = [System.Web.HttpUtility]::HtmlDecode($s)
+  $s = $s -replace '\s+', ' '
+  $s = $s.Trim()
+  $s.ToLowerInvariant()
+}
+
 function Rewrite-DocLinks {
   [CmdletBinding()]
   param(
