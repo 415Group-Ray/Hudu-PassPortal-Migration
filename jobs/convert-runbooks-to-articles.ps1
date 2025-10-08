@@ -88,19 +88,43 @@ write-host "libreoffice sofficepath $sofficepath"
 $convertedDocs = @{}
 
 foreach ($a in $ConvertDocsList){
-    $Keyname = Get-Safefilename -Name "$([System.IO.Path]::GetFileNameWithoutExtension($a.Name))".trim()
-    $extractPath = "$tmpfolder\$Keyname"
-    if (!(Test-Path -Path "$extractPath")) { New-Item "$extractPath" -ItemType Directory }; Get-ChildItem -Path "$extractPath" -File -Recurse -Force | Remove-Item -Force;
+    $KeyName     = Get-SafeFileBase -Name $a.BaseName
+    $extractPath = Join-Path $tmpfolder $KeyName
+
+    if (Test-Path $extractPath) {
+    Get-ChildItem -Path $extractPath -File -Recurse -Force | Remove-Item -Force -ErrorAction SilentlyContinue
+    } else {
+    New-Item -ItemType Directory -Path $extractPath | Out-Null
+    }
+
     try {
         $HTMLoutput = Convert-PdfToSlimHtml -InputPdfPath $a.FullName -OutputDir $extractPath -PdfToHtmlPath $PDFToHTML
         $convertedDocs[$keyName]=@{
-            ConvertedHTML=$HTMLoutput
+            HTMLpath = $(resolve-path $HTMLoutput)
             ExtractedImages=$($(Get-ChildItem -Path (Join-Path $extractPath '*') -Recurse -File -Include `
                 *.png, *.jpg, *.jpeg, *.gif, *.bmp, *.tif, *.tiff, *.webp, *.heic, *.heif, *.svg, *.ico, *.avif, *.psd `
                 | Select-Object -ExpandProperty FullName) ?? @())
             ExtractPath = $extractPath
+            FoundLinks = @()
+            SplitDocs = @()
         }
     } catch {
         Write-Error "Error during slim convert- $_"
     }
+}
+
+write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to specially parse them into individual docs."
+
+
+foreach ($key in $convertedDocs.keys) {
+    $FullDoc = $convertedDocs["$($key)"]
+    $SplitDocs = Split-HtmlByCompanyAndTitle -Path $FullDoc.HTMLpath
+    $fullDoc["CompanyName"] = $($splitDocs.Company | Select-Object -first 1)
+    foreach ($splitDoc in $SplitDocs){
+        $FullDoc["SplitDocs"]+=@{
+            Title = $splitDoc.Title
+            Article = $SplitDoc.Html
+        }
+    }
+    
 }

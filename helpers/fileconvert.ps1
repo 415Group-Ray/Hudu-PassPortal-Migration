@@ -1,4 +1,106 @@
+function Normalize-CompanyName([string]$s) {
+  # strip leading digits + optional separators like '.', ')', '-', '_' and spaces
+  return ($s -replace '^\s*\d+\s*[-._)\(]*\s*', '') -replace '\s{2,}', ' '
+}
+function Split-HtmlByCompanyAndTitle {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory, Position=0)]
+    [string]$Path,
 
+    # Return PowerShell objects instead of JSON string
+    [switch]$AsObjects,
+
+    # Return one big HTML string with <!-- COMPANY | TITLE --> separators
+    [switch]$AsHtml
+  )
+
+  # Read file
+  $html = [System.IO.File]::ReadAllText($Path)
+
+  # Regexes:
+  # Start marker:  <div class='page' ...><p>_COMPANY Article Title</p>
+  # End marker:    <p>IgnoreThis | COMPANY</p>
+  $startRx = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''""])page\1[^>]*>\s*<p>\s*_(?<company>[A-Za-z0-9 .,&()/_+-]+?)\s+(?<title>[^<]+?)\s*</p>'
+  $endRx   = [regex]'(?is)<p>\s*IgnoreThis\s*\|\s*(?<company>[A-Za-z0-9 .,&()/_+-]+?)\s*</p>'
+
+  $startMatches = $startRx.Matches($html)
+  $endMatches   = $endRx.Matches($html)
+
+  if ($startMatches.Count -eq 0) {
+    Write-Verbose "No start markers found."
+    if ($AsObjects -or $AsHtml) { return @() } else { return '[]' }
+  }
+
+  # Helper to find the first end marker after a given index, optionally matching company
+  function Get-EndMatchAfter {
+    param([int]$idx, [string]$company)
+    foreach ($m in $endMatches) {
+      if ($m.Index -gt $idx) {
+        if ([string]::IsNullOrWhiteSpace($company) -or $m.Groups['company'].Value -eq $company) {
+          return $m
+        }
+      }
+    }
+    return $null
+  }
+
+  $articles = New-Object System.Collections.Generic.List[object]
+
+  for ($i = 0; $i -lt $startMatches.Count; $i++) {
+    $s = $startMatches[$i]
+    $company = $s.Groups['company'].Value.Trim()
+    $title   = $s.Groups['title'].Value.Trim()
+
+    # Prefer an end marker with the same company; fall back to the next start (or EOF)
+    $endForSameCompany = Get-EndMatchAfter -idx $s.Index -company $company
+    $contentStart = $s.Index
+    $contentEnd   = $null
+
+    if ($endForSameCompany) {
+      $contentEnd = $endForSameCompany.Index
+    } else {
+      # fallback: up to next start marker (exclusive) or end of file
+      if ($i -lt $startMatches.Count - 1) {
+        $contentEnd = $startMatches[$i+1].Index
+      } else {
+        $contentEnd = $html.Length
+      }
+    }
+
+    if ($contentEnd -lt $contentStart) { continue }
+
+    $block = $html.Substring($contentStart, $contentEnd - $contentStart)
+
+    # Optionally strip the leading start marker line and trailing end marker line from the block
+    # (Leave them in if you want exact raw capture)
+    # Remove the first "<p>_COMPANY ArticleTitle</p>" inside this block:
+    $block = [regex]::Replace($block, '(?is)^\s*<div[^>]*\bclass\s*=\s*([''""])page\1[^>]*>\s*<p>\s*_[^<]+</p>\s*', '', 1)
+    # Remove the last trailing "IgnoreThis | COMPANY" if present:
+    $block = [regex]::Replace($block, '(?is)<p>\s*IgnoreThis\s*\|\s*' + [regex]::Escape($company) + '\s*</p>\s*$', '')
+
+    $articles.Add([pscustomobject]@{
+      Company = "$(Normalize-CompanyName $company)".Trim()
+      Title   = $title
+      Html    = $block.Trim()
+    })
+  }
+
+  if ($AsObjects) {
+    return $articles
+  }
+  elseif ($AsHtml) {
+    # One big HTML string with separators
+    $parts = foreach ($a in $articles) {
+      "<!-- $($a.Company) | $($a.Title) -->`n$($a.Html)"
+    }
+    return ($parts -join "`n`n")
+  }
+  else {
+    # Default: JSON string
+    return ($articles | ConvertTo-Json -Depth 10)
+  }
+}
 
 function Get-AbsolutePath {
   param(
