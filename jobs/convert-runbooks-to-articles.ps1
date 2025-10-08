@@ -107,6 +107,7 @@ foreach ($a in $ConvertDocsList){
             ExtractPath = $extractPath
             FoundLinks = @()
             SplitDocs = @()
+            CompanyName = ""
         }
     } catch {
         Write-Error "Error during slim convert- $_"
@@ -116,15 +117,16 @@ foreach ($a in $ConvertDocsList){
 write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to specially parse them into individual docs."
 
 
-foreach ($key in $convertedDocs.keys) {
-    $FullDoc = $convertedDocs["$($key)"]
-    $SplitDocs = Split-HtmlByCompanyAndTitle -Path $FullDoc.HTMLpath
-    $fullDoc["CompanyName"] = $($splitDocs.Company | Select-Object -first 1)
-    foreach ($splitDoc in $SplitDocs){
-        $FullDoc["SplitDocs"]+=@{
-            Title = $splitDoc.Title
-            Article = $SplitDoc.Html
-        }
+foreach ($key in $convertedDocs.Keys) {
+  $doc = $convertedDocs[$key]
+  $split = Split-HtmlIntoArticles -Path $doc.HtmlPath -AsObjects
+
+  $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
+  $doc['SplitDocs']   = @()
+  foreach ($sd in $split) {
+    $doc['SplitDocs'] += [pscustomobject]@{
+      Title   = $sd.Title
+      Article = $sd.Html
     }
-    
+  }
 }

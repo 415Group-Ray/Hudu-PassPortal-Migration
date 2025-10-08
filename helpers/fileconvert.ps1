@@ -2,102 +2,149 @@ function Normalize-CompanyName([string]$s) {
   # strip leading digits + optional separators like '.', ')', '-', '_' and spaces
   return ($s -replace '^\s*\d+\s*[-._)\(]*\s*', '') -replace '\s{2,}', ' '
 }
-function Split-HtmlByCompanyAndTitle {
+function Get-SafeFileBase {
+  param([Parameter(Mandatory)][string]$Name)
+  $s = $Name
+  # normalize whitespace
+  $s = $s -replace '\s+', ' '          # collapse
+  $s = $s.Trim()                        # trim ends
+  # replace risky punctuation
+  $s = $s -replace '&', 'and'
+  # remove Windows forbidden chars
+  $s = $s -replace '[<>:"/\\|?*]', ''
+  # remove control chars
+  $s = ($s.ToCharArray() | Where-Object { [int]$_ -ge 32 }) -join ''
+  # Windows hates trailing dots/spaces on file/dir names
+  $s = $s -replace '[\s\.]+$', ''
+  if ([string]::IsNullOrWhiteSpace($s)) { $s = 'untitled' }
+  return $s
+}
+function Split-HtmlIntoArticles {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory, Position=0)]
+    [ValidateScript({ Test-Path $_ -PathType Leaf })]
     [string]$Path,
 
-    # Return PowerShell objects instead of JSON string
-    [switch]$AsObjects,
+    # If you already know the company name, pass it to skip footer inference
+    [string]$CompanyOverride,
 
-    # Return one big HTML string with <!-- COMPANY | TITLE --> separators
+    [switch]$AsObjects,
     [switch]$AsHtml
   )
 
-  # Read file
-  $html = [System.IO.File]::ReadAllText($Path)
+  $html = [IO.File]::ReadAllText($Path)
 
-  # Regexes:
-  # Start marker:  <div class='page' ...><p>_COMPANY Article Title</p>
-  # End marker:    <p>IgnoreThis | COMPANY</p>
-  $startRx = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''""])page\1[^>]*>\s*<p>\s*_(?<company>[A-Za-z0-9 .,&()/_+-]+?)\s+(?<title>[^<]+?)\s*</p>'
-  $endRx   = [regex]'(?is)<p>\s*IgnoreThis\s*\|\s*(?<company>[A-Za-z0-9 .,&()/_+-]+?)\s*</p>'
+  # Regexes
+  $rxPage   = [regex]'(?is)<div[^>]*\bclass\s*=\s*([''"])page\1[^>]*>(?<content>.*?)</div>'
+  $rxPTxt   = [regex]'(?is)<p[^>]*>(?<t>.*?)</p>'
+  $rxNum    = [regex]'^\s*\d+(\.\d+)*\s*$'                  # 1, 1.2, 10.11.12
+  $rxFooter = [regex]'(?is)<p[^>]*>[^<]*\|\s*(?<co>[^<]+)\s*</p>\s*$'  # "* | Company"
 
-  $startMatches = $startRx.Matches($html)
-  $endMatches   = $endRx.Matches($html)
+  # Helpers
+  function Get-Ps([string]$block){
+    ($rxPTxt.Matches($block) | ForEach-Object { $_.Groups['t'].Value.Trim() })
+  }
+  function Strip-FirstP([string]$block, [int]$n=1){
+    $out = $block
+    for ($i=0; $i -lt $n; $i++){
+      $out = [regex]::Replace($out, '(?is)^\s*<p[^>]*>.*?</p>\s*', '', 1)
+    }
+    $out
+  }
+  function Strip-TrailingPageNumber([string]$block){
+    [regex]::Replace($block, '(?is)\s*<p[^>]*>\s*\d+(\.\d+)*\s*</p>\s*$', '')
+  }
+  function Strip-Footer([string]$block, [string]$company){
+    if (-not $company) { return $block }
+    $co = [regex]::Escape($company)
+    [regex]::Replace($block, "(?is)\s*<p[^>]*>[^<]*\|\s*$co\s*</p>\s*$", '')
+  }
 
-  if ($startMatches.Count -eq 0) {
-    Write-Verbose "No start markers found."
+  # Collect pages
+  $pageMatches = $rxPage.Matches($html)
+  if ($pageMatches.Count -eq 0) {
     if ($AsObjects -or $AsHtml) { return @() } else { return '[]' }
   }
+  $pages = @()
+  foreach ($m in $pageMatches) { $pages += ,$m.Groups['content'].Value }
 
-  # Helper to find the first end marker after a given index, optionally matching company
-  function Get-EndMatchAfter {
-    param([int]$idx, [string]$company)
-    foreach ($m in $endMatches) {
-      if ($m.Index -gt $idx) {
-        if ([string]::IsNullOrWhiteSpace($company) -or $m.Groups['company'].Value -eq $company) {
-          return $m
+  # Infer company from footers if not provided
+  $company = $CompanyOverride
+  if (-not $company) {
+    $footerCompanies = @()
+    foreach ($p in $pages) {
+      $fm = $rxFooter.Match($p)
+      if ($fm.Success) { $footerCompanies += $fm.Groups['co'].Value.Trim() }
+    }
+    if ($footerCompanies.Count -gt 0) {
+      $company = ($footerCompanies | Group-Object | Sort-Object Count -Descending | Select-Object -First 1).Name
+    }
+  }
+
+  # Header page: if first page is a pure “doc header” (Company/Doc title),
+  # we still rely on article pages that follow the {Title, Number} rule.
+  $articles = New-Object System.Collections.Generic.List[object]
+  $current  = $null
+
+  for ($i=0; $i -lt $pages.Count; $i++) {
+    $pg     = $pages[$i]
+    $ptexts = Get-Ps $pg
+    $first  = $ptexts | Select-Object -First 1
+    $second = $ptexts | Select-Object -Skip 1 -First 1
+
+    $looksLikeTitle = (-not [string]::IsNullOrWhiteSpace($first)) -and (-not $rxNum.IsMatch($first))
+    $nextIsNumber   = ($second -and $rxNum.IsMatch($second))
+
+    if ($looksLikeTitle -and $nextIsNumber) {
+      # New article starts on this page
+      if ($null -ne $current) {
+        $current.Html = $current.Html.Trim()
+        if ($current.Title -and $current.Html) { $articles.Add($current) }
+      }
+
+      # Remove the title line from this page’s body
+      $body = Strip-FirstP $pg 1
+      $body = Strip-TrailingPageNumber $body
+      $body = Strip-Footer $body $company
+
+      $current = [pscustomobject]@{
+        Company = $company
+        Title   = $first
+        Html    = "<div class='page'>$body</div>`n"
+      }
+    }
+    else {
+      # Continuation (or preface pages before first article)
+      $body = Strip-TrailingPageNumber $pg
+      $body = Strip-Footer $body $company
+
+      if ($null -eq $current) {
+        # Buffer preface pages under a synthetic article until we hit the first real one
+        $current = [pscustomobject]@{
+          Company = $company
+          Title   = 'Preface'
+          Html    = ''
         }
       }
+      $current.Html += "<div class='page'>$body</div>`n"
     }
-    return $null
   }
 
-  $articles = New-Object System.Collections.Generic.List[object]
-
-  for ($i = 0; $i -lt $startMatches.Count; $i++) {
-    $s = $startMatches[$i]
-    $company = $s.Groups['company'].Value.Trim()
-    $title   = $s.Groups['title'].Value.Trim()
-
-    # Prefer an end marker with the same company; fall back to the next start (or EOF)
-    $endForSameCompany = Get-EndMatchAfter -idx $s.Index -company $company
-    $contentStart = $s.Index
-    $contentEnd   = $null
-
-    if ($endForSameCompany) {
-      $contentEnd = $endForSameCompany.Index
-    } else {
-      # fallback: up to next start marker (exclusive) or end of file
-      if ($i -lt $startMatches.Count - 1) {
-        $contentEnd = $startMatches[$i+1].Index
-      } else {
-        $contentEnd = $html.Length
-      }
-    }
-
-    if ($contentEnd -lt $contentStart) { continue }
-
-    $block = $html.Substring($contentStart, $contentEnd - $contentStart)
-
-    # Optionally strip the leading start marker line and trailing end marker line from the block
-    # (Leave them in if you want exact raw capture)
-    # Remove the first "<p>_COMPANY ArticleTitle</p>" inside this block:
-    $block = [regex]::Replace($block, '(?is)^\s*<div[^>]*\bclass\s*=\s*([''""])page\1[^>]*>\s*<p>\s*_[^<]+</p>\s*', '', 1)
-    # Remove the last trailing "IgnoreThis | COMPANY" if present:
-    $block = [regex]::Replace($block, '(?is)<p>\s*IgnoreThis\s*\|\s*' + [regex]::Escape($company) + '\s*</p>\s*$', '')
-
-    $articles.Add([pscustomobject]@{
-      Company = "$(Normalize-CompanyName $company)".Trim()
-      Title   = $title
-      Html    = $block.Trim()
-    })
+  # Commit last
+  if ($null -ne $current) {
+    $current.Html = $current.Html.Trim()
+    if ($current.Title -and $current.Html) { $articles.Add($current) }
   }
 
-  if ($AsObjects) {
-    return $articles
-  }
+  # If the first article is a 'Preface' and you don't want it, drop it:
+  $articles = [System.Collections.Generic.List[object]]($articles | Where-Object { $_.Title -ne 'Preface' })
+
+  if ($AsObjects) { return $articles }
   elseif ($AsHtml) {
-    # One big HTML string with separators
-    $parts = foreach ($a in $articles) {
-      "<!-- $($a.Company) | $($a.Title) -->`n$($a.Html)"
-    }
-    return ($parts -join "`n`n")
+    return ($articles | ForEach-Object { "<!-- $($_.Company) | $($_.Title) -->`n$($_.Html)" }) -join "`n`n"
   }
   else {
-    # Default: JSON string
     return ($articles | ConvertTo-Json -Depth 10)
   }
 }
