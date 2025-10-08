@@ -8,6 +8,8 @@ $passportalData = @{
     Token = $null; Headers = @{}; BaseURL = $null; clients=@(); Documents =@(); csvData = @{}
 }
 
+$PassportalDocsConvert = $PassportalDocsConvert ?? $false
+
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
