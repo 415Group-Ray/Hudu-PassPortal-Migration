@@ -1,3 +1,108 @@
+using namespace System.Text.RegularExpressions
+
+# <img|embed|a|iframe|source|video|audio ...>
+$Script:RxTag = [Regex]::new(@'
+<(img|embed|a|iframe|source|video|audio)\b(?<attrs>[^>]*)>
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# src|href|data|poster="..."/'...'
+$Script:RxAttr = [Regex]::new(@'
+\b(?<name>src|href|data|poster)\s*=\s*(?<q>["'])(?<val>.*?)\k<q>
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# style="...url(...)"    (first grab the whole style attr)
+$Script:RxStyleAttr = [Regex]::new(@'
+\bstyle\s*=\s*(["'])(?<style>.*?)\1
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# url(...) inside a style string
+$Script:RxCssUrl = [Regex]::new(@'
+url\(\s*(["']?)(?<u>[^)"']+)\1\s*\)
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+function Rewrite-DocLinks {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory, Position=0)][string]$Html,
+    [Parameter(Mandatory)][scriptblock]$ImageResolver, # param([string]$src,[hashtable]$ctx) -> [string] or $null
+    [Parameter(Mandatory)][scriptblock]$LinkResolver,  # param([string]$href,[hashtable]$ctx) -> [string] or $null
+    [hashtable]$Context = @{}
+  )
+
+  $rewrites  = New-Object System.Collections.Generic.List[object]
+  $unresolved = New-Object System.Collections.Generic.List[object]
+
+  # 1) tag attributes (src/href/data/poster)
+  $html1 = $Script:RxTag.Replace($Html, {
+    param([Match]$m)
+
+    $tagName = $m.Groups[1].Value.ToLowerInvariant()
+    $attrs   = $m.Groups['attrs'].Value
+
+    $newAttrs = $Script:RxAttr.Replace($attrs, {
+      param([Match]$ma)
+      $name = $ma.Groups['name'].Value.ToLowerInvariant()
+      $q    = $ma.Groups['q'].Value
+      $val  = $ma.Groups['val'].Value
+
+      $newVal = $null
+      switch ($name) {
+        'href' { $newVal = & $LinkResolver  $val $Context }
+        default { $newVal = & $ImageResolver $val $Context } # src/data/poster
+      }
+
+      if ($newVal -and $newVal -ne $val) {
+        $rewrites.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; From=$val; To=$newVal }) | Out-Null
+        return "$name=$q$newVal$q"
+      } else {
+        if (-not $newVal) { $unresolved.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; Value=$val }) | Out-Null }
+        return $ma.Value
+      }
+    })
+
+    "<$tagName$newAttrs>"
+  })
+
+  # 2) inline style url(...) occurrences
+  $html2 = $Script:RxStyleAttr.Replace($html1, {
+    param([Match]$m)
+    $q     = $m.Groups[1].Value
+    $style = $m.Groups['style'].Value
+
+    $newStyle = $Script:RxCssUrl.Replace($style, {
+      param([Match]$mu)
+      $u    = $mu.Groups['u'].Value
+      $newU = & $ImageResolver $u $Context
+      if ($newU -and $newU -ne $u) {
+        $rewrites.Add([pscustomobject]@{ Tag='style'; Attr='url'; From=$u; To=$newU }) | Out-Null
+        return "url($newU)"
+      } else {
+        if (-not $newU) { $unresolved.Add([pscustomobject]@{ Tag='style'; Attr='url'; Value=$u }) | Out-Null }
+        return $mu.Value
+      }
+    })
+
+    " style=$q$newStyle$q"
+  })
+
+  [pscustomobject]@{
+    Html       = $html2
+    Rewrites   = $rewrites
+    Unresolved = $unresolved
+  }
+}
+function Get-SimilaritySafe { param([string]$A,[string]$B)
+    if ([string]::IsNullOrWhiteSpace($A) -or [string]::IsNullOrWhiteSpace($B)) { return 0.0 }
+    Get-Similarity $A $B
+}
+
 function As-HtmlString {
   param($Value)
   if ($Value -is [string]) { return $Value }
@@ -6,6 +111,67 @@ function As-HtmlString {
     return (($Value | Where-Object { $_ -is [string] }) -join '')
   }
   return [string]$Value
+}
+function Normalize-Text {
+    param([string]$s)
+    if ([string]::IsNullOrWhiteSpace($s)) { return $null }
+    $s = $s.Trim().ToLowerInvariant()
+    $s = [regex]::Replace($s, '[\s_-]+', ' ')  # "primary_email" -> "primary email"
+    # strip diacritics (prénom -> prenom)
+    $formD = $s.Normalize([System.Text.NormalizationForm]::FormD)
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($ch in $formD.ToCharArray()){
+        if ([System.Globalization.CharUnicodeInfo]::GetUnicodeCategory($ch) -ne
+            [System.Globalization.UnicodeCategory]::NonSpacingMark) { [void]$sb.Append($ch) }
+    }
+    ($sb.ToString()).Normalize([System.Text.NormalizationForm]::FormC)
+}
+function Test-Equiv {
+    param([string]$A, [string]$B)
+    $a = Normalize-Text $A; $b = Normalize-Text $B
+    if (-not $a -or -not $b) { return $false }
+    if ($a -eq $b) { return $true }
+    $reA = "(^| )$([regex]::Escape($a))( |$)"
+    $reB = "(^| )$([regex]::Escape($b))( |$)"
+    if ($b -match $reA -or $a -match $reB) { return $true } 
+    if ($a.Replace(' ', '') -eq $b.Replace(' ', '')) { return $true }
+    return $false
+}
+function Get-Similarity {
+    param([string]$A, [string]$B)
+
+    $a = [string](Normalize-Text $A)
+    $b = [string](Normalize-Text $B)
+    if ([string]::IsNullOrEmpty($a) -and [string]::IsNullOrEmpty($b)) { return 1.0 }
+    if ([string]::IsNullOrEmpty($a) -or  [string]::IsNullOrEmpty($b))  { return 0.0 }
+
+    $n = [int]$a.Length
+    $m = [int]$b.Length
+    if ($n -eq 0) { return [double]($m -eq 0) }
+    if ($m -eq 0) { return 0.0 }
+
+    $d = New-Object 'int[,]' ($n+1), ($m+1)
+    for ($i = 0; $i -le $n; $i++) { $d[$i,0] = $i }
+    for ($j = 0; $j -le $m; $j++) { $d[0,$j] = $j }
+
+    for ($i = 1; $i -le $n; $i++) {
+        $im1 = ([int]$i) - 1
+        $ai  = $a[$im1]
+        for ($j = 1; $j -le $m; $j++) {
+            $jm1 = ([int]$j) - 1
+            $cost = if ($ai -eq $b[$jm1]) { 0 } else { 1 }
+
+            $del = [int]$d[$i,  $j]   + 1
+            $ins = [int]$d[$i,  $jm1] + 1
+            $sub = [int]$d[$im1,$jm1] + $cost
+
+            $d[$i,$j] = [Math]::Min($del, [Math]::Min($ins, $sub))
+        }
+    }
+
+    $dist   = [double]$d[$n,$m]
+    $maxLen = [double][Math]::Max($n,$m)
+    return 1.0 - ($dist / $maxLen)
 }
 function Normalize-KeyForLookup {
   param(
@@ -54,6 +220,79 @@ function Get-ReplacementUrl {
   }
   return $null
 }
+
+function Rewrite-DocLinks {
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory, Position=0)][string]$Html,
+    [Parameter(Mandatory)][scriptblock]$ImageResolver, # param([string]$src,[hashtable]$ctx) -> [string] or $null
+    [Parameter(Mandatory)][scriptblock]$LinkResolver,  # param([string]$href,[hashtable]$ctx) -> [string] or $null
+    [hashtable]$Context = @{}
+  )
+
+  $rewrites  = New-Object System.Collections.Generic.List[object]
+  $unresolved = New-Object System.Collections.Generic.List[object]
+
+  # 1) tag attributes (src/href/data/poster)
+  $html1 = $Script:RxTag.Replace($Html, {
+    param([Match]$m)
+
+    $tagName = $m.Groups[1].Value.ToLowerInvariant()
+    $attrs   = $m.Groups['attrs'].Value
+
+    $newAttrs = $Script:RxAttr.Replace($attrs, {
+      param([Match]$ma)
+      $name = $ma.Groups['name'].Value.ToLowerInvariant()
+      $q    = $ma.Groups['q'].Value
+      $val  = $ma.Groups['val'].Value
+
+      $newVal = $null
+      switch ($name) {
+        'href' { $newVal = & $LinkResolver  $val $Context }
+        default { $newVal = & $ImageResolver $val $Context } # src/data/poster
+      }
+
+      if ($newVal -and $newVal -ne $val) {
+        $rewrites.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; From=$val; To=$newVal }) | Out-Null
+        return "$name=$q$newVal$q"
+      } else {
+        if (-not $newVal) { $unresolved.Add([pscustomobject]@{ Tag=$tagName; Attr=$name; Value=$val }) | Out-Null }
+        return $ma.Value
+      }
+    })
+
+    "<$tagName$newAttrs>"
+  })
+
+  # 2) inline style url(...) occurrences
+  $html2 = $Script:RxStyleAttr.Replace($html1, {
+    param([Match]$m)
+    $q     = $m.Groups[1].Value
+    $style = $m.Groups['style'].Value
+
+    $newStyle = $Script:RxCssUrl.Replace($style, {
+      param([Match]$mu)
+      $u    = $mu.Groups['u'].Value
+      $newU = & $ImageResolver $u $Context
+      if ($newU -and $newU -ne $u) {
+        $rewrites.Add([pscustomobject]@{ Tag='style'; Attr='url'; From=$u; To=$newU }) | Out-Null
+        return "url($newU)"
+      } else {
+        if (-not $newU) { $unresolved.Add([pscustomobject]@{ Tag='style'; Attr='url'; Value=$u }) | Out-Null }
+        return $mu.Value
+      }
+    })
+
+    " style=$q$newStyle$q"
+  })
+
+  [pscustomobject]@{
+    Html       = $html2
+    Rewrites   = $rewrites
+    Unresolved = $unresolved
+  }
+}
+
 function Get-LinksFromHTML {
     param (
         [string]$htmlContent,

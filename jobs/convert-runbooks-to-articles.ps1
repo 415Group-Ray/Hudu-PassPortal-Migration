@@ -107,6 +107,7 @@ foreach ($a in $ConvertDocsList){
             ExtractPath = $extractPath
             FoundLinks = @()
             SplitDocs = @()
+            HuduCompany = $null
             CompanyName = ""
         }
     } catch {
@@ -116,17 +117,82 @@ foreach ($a in $ConvertDocsList){
 
 write-host "Successfully converted $($convertedDocs.count) runbook docs. Now to specially parse them into individual docs."
 
+$huduCompanies = Get-HuduCompanies
+$allHududocuments = Get-HuduArticles
 
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
   $split = Split-HtmlIntoArticles -Path $doc.HtmlPath -AsObjects
+  $matchedCompany = $null  
+    $matchedCompany = $huduCompanies | where-object {
+        ($_.name -eq $company) -or
+        [bool]$(Test-Equiv -A $_.name -B "*$($company)*") -or
+        [bool]$(Test-Equiv -A $_.nickname -B "*$($company)*")} | Select-Object -First 1
+
+    $matchedCompany = $matchedCompany ?? (Get-HuduCompanies -Name $company | Select-Object -First 1)
+
+  if ($matchedCompany){
+    $doc["HuduCompany"]=$matchedCompany
+    Write-Host "$($key) attributed to company $($matchedCompany.name) in Hudu."
+  } else {
+    Write-Host "Could not match $key to company. skipping"
+    continue
+  }
 
   $doc['CompanyName'] = ($split | Select-Object -ExpandProperty Company -First 1)
   $doc['SplitDocs']   = @()
   foreach ($sd in $split) {
+    $matchedDocument = $null
+    $newDocument = $null
+    $uploaded = $null
+    $matchedDocument = $allHududocuments | Where-Object {
+        $_.company_id -eq $matchedCompany.id -and
+                $($(Test-Equiv -A $_.name -B $sd.Title) -or 
+                $([double]$(Get-SimilaritySafe -A $_.name -B $sd.Title) -ge 0.94))} | Select-Object -first 1
+    $matchedDocument = $matchedDocument ?? $($(Get-HuduArticles -CompanyId $matchedCompany.id -name $sd.Title) | Select-Object -first 1)
+    if (-not $matchedDocument){
+        $newDocument = New-HuduArticle -name "$($sd.Title)" -Content "[transfer in-progress]" -CompanyId $matchedCompany.id
+        $newDocument = $newDocument.article ?? $newDocument
+    }
+    if ($newDocument){Write-Host "Created article stub $($newDocument.id)"}
+    elseif ($matchedDocument){Write-Host "Matched exist article $($matchedDocument.id)"}
+    $articleUsed = $matchedDocument ?? $newDocument ?? $null
+    if ($null -eq $articleUsed -or -not $articleUsed.id -or $articleUsed.id -lt 1) {Write-Error "could not match or create article $($sd.Title) for company $key"; continue;}
+    Write-Host "Checking for or creating existing image embeds"
+    $existingRelatedImages = Get-Huduuploads | where-object {$_.uploadable_type -eq "Article" -and [string]$_.uploadable_id -eq [string]$articleUsed.Id}
+    $HuduImages = @()
+    foreach ($ImageFile in $doc.ExtractedImages){
+        $existingUpload = $null
+        $ImagefileName = $(resolve-path $ImageFile).baseName
+        Write-Host "Checking $($existingRelatedImages.count) related image for $ImagefileName"
+        $existingupload = $existingRelatedImages | where-object {"$($_.name)" -ilike "*$($ImagefileName)*" -or $(Test-Equiv -A $_.name -B "$ImagefileName")} | select-object -first 1
+        $existingupload = $existingupload.upload ?? $existingupload
+        if ($existingUpload) {
+            write-host "ExistingUplaod Match $existingupload"
+        } else {
+            Write-Host "No existing upload, uploading file @ $($ImageFile)"
+            $uploaded = New-HuduUpload -FilePath $ImageFile `
+                -Uploadable_Id $articleUsed.Id `
+                -Uploadable_Type 'Article'
+            $uploaded = $uploaded.upload ?? $uploaded
+        }
+        $usingImage = $existingUpload ?? $uploaded ?? $null
+        if ($usingImage){
+            write-host "set to use $($usingImage) for $ImageFile"
+        }
+        $HuduImages+=@{
+            OriginalFilename = $ImageFile
+            UsingImage = $usingImage
+        }
+    }
+
     $doc['SplitDocs'] += [pscustomobject]@{
       Title   = $sd.Title
       Article = $sd.Html
+      HuduArticle = $articleUsed
+      HuduImages = $HuduImages
     }
   }
 }
+
+Write-Host "All Articles created or stubbed"
