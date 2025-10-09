@@ -14,3 +14,10 @@ logs\PassPortalLog
 PassPortalLog
 logs/PassPortalLog*
 */PassPortalLog*
+.\tmp
+tmp\*
+docs\
+tmp/LibreOffice.msi
+tmp
+.\tmp*
+*\tmp\*

@@ -12,6 +12,7 @@ Easy Migration from SolarWinds Passportal to Hudu
 - Passportal and Passportal API key/Secret
 - Powershell 7.5.1 or later
 - CSV exports for Passwords should be placed in the .\csv-exports directory within project folder
+- If you are splitting+migrating large Runbook Exports (as pdf), place those 
 
 ### Terminology
 
@@ -31,6 +32,18 @@ You'll then click `Create Access Key`. **Take note of both values, as it will on
 You'll place your exported CSVs from Passportal in `.\exported-csvs\*`. This is required if you want to import passwords using this utility, since passwords are not available/exposed-to the Passportal API at present. While not including headers in your CSV export should be fine and is handled, you're encouraged to opt for including headers.
 
 <img width="295" height="94" alt="image" src="https://github.com/user-attachments/assets/c70c9d0a-fc7f-42e4-bdf3-324507cc7d1d" />
+
+### Setup Runbooks Exports
+
+If you'd like to parse/split Runbooks PDF documents into individual Articles, this is easy. 
+
+All you need to do is place all PDFs from Runbooks export into a given folder. When asked at the start of Passportal Migration, you can select yes to include these. This job can also be run independently from the rest, so if you want to run this seperately, you can select 'No' and do it later by dot-sourcing it from the main project directory
+
+```
+c:\myusername\Documents\GitHub\Hudu-PassPortal-Migration> . .\jobs\convert-runbooks-to-articles.ps1
+```
+
+The rest is taken care of- images will be extracted and uploaded, and your runbooks will be split by title into individual articles for each company!
 
 ## Getting Started
 
@@ -91,6 +104,23 @@ The CSV data for each password entry is pretty sparse, so we aren't able to matc
 You can choose to attribute the printed credential to any given asset that belongs to that credential's company or you can select option 0 to attribute it to the company itself, as a generalized password, if it doesnt belong to a specific asset.
 
 Each attributable item is listed with a number that is used for selection, and each attributable item is written with alternating colors for easy readability.
+
+### Runbooks Parse/Split to Hudu Article
+
+If you elected to do so and have Runbooks PDFs exported into a single folder, that's all that you need to do for this.
+The process looks like this:
+
+A temporary processing directory will be created in Hudu-PassPortal-Migration\tmp
+
+You'll be asked to provide a path to search for your source PDF files. If there are PDFs present, these will be converted to html with pdftohtml.exe (included in tools folder), extracting any images encountered along the way.
+
+Then, each html file's contents will be parsed and split with some admittedly-fancy regex that extracts company name, article name, and each article contents across pages. 
+
+Then, each of these split articles is attributed to a company and each of the extracted images is attributed to that company.
+
+Next, articles are created with nearly-blank content, so we know where all the articles are (to add links between articles sffectively)
+
+Then, we replace all the image links and web links with the ones we have just created. Then, each newly-split temporary article is updated with final contents. Easy!
 
 ### Wrap-Up
 

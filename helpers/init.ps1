@@ -26,7 +26,7 @@ $PPBaseURIs = @(
 # }
 
 # Set up logging object
-$RunSummary=@{
+$RunSummary=$RunSummary ?? @{
     State="Set-Up"
     CompletedStates=@()
     OutputJsonFiles = @{
