@@ -1,4 +1,33 @@
+# -------- regex objects (define once, e.g., in the same ps1) --------
 using namespace System.Text.RegularExpressions
+
+# <img|embed|a|iframe|source|video|audio ...>
+$Script:RxTag = [Regex]::new(@'
+<(img|embed|a|iframe|source|video|audio)\b(?<attrs>[^>]*)>
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# src|href|data|poster="..."/'...'
+$Script:RxAttr = [Regex]::new(@'
+\b(?<name>src|href|data|poster)\s*=\s*(?<q>["'])(?<val>.*?)\k<q>
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# style="...url(...)"    (first grab the whole style attr)
+$Script:RxStyleAttr = [Regex]::new(@'
+\bstyle\s*=\s*(["'])(?<style>.*?)\1
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
+
+# url(...) inside a style string
+$Script:RxCssUrl = [Regex]::new(@'
+url\(\s*(["']?)(?<u>[^)"']+)\1\s*\)
+'@,
+  [RegexOptions]::IgnoreCase -bor [RegexOptions]::Singleline
+)
 
 function Split-FullHtmlIntoArticles {
   [CmdletBinding()]

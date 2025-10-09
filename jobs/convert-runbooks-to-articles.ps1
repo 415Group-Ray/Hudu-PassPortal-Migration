@@ -295,6 +295,7 @@ $ImageResolver = {
 
   return $null
 }
+try { Add-Type -AssemblyName System.Web -ErrorAction SilentlyContinue } catch {}
 
 foreach ($key in $convertedDocs.Keys) {
   $doc = $convertedDocs[$key]
