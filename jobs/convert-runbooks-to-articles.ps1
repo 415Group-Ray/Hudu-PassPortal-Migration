@@ -10,37 +10,24 @@ foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort
     Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
     . $file.FullName
 }
-function Get-SafeFilename {
-    param([string]$Name,
-        [int]$MaxLength=25
-    )
 
-    # If there's a '?', take only the part before it
-    $BaseName = $Name -split '\?' | Select-Object -First 1
-
-    # Extract extension (including the dot), if present
-    $Extension = [System.IO.Path]::GetExtension($BaseName)
-    $NameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($BaseName)
-
-    # Sanitize name and extension
-    $SafeName = $NameWithoutExt -replace '[\\\/:*?"<>|]', '_'
-    $SafeExt = $Extension -replace '[\\\/:*?"<>|]', '_'
-
-    # Truncate base name to 25 chars
-    if ($SafeName.Length -gt $MaxLength) {
-        $SafeName = $SafeName.Substring(0, $MaxLength)
-    }
-
-    return "$SafeName$SafeExt"
-}
 
 if (-not $PassportalDocsConvert -or -not $true -eq $PassportalDocsConvert){
     Write-host "Not set to convert passportal";x Exit 0;
 }
 
-if (-not $PassportalRubooksPath -or $([string]::IsNullOrEmpty($PassportalRubooksPath))){
-    $PassportalRubooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
-}
+    while ($true) {
+        if (-not $PassportalRubooksPath -or $([string]::IsNullOrEmpty($PassportalRubooksPath))){
+          $PassportalRubooksPath = $(read-host "Please enter absolute path to your passportal runbooks")
+        } elseif (-not $(Test-Path $PassportalRubooksPath)){
+          Write-Host "Runbooks path (currently $PassportalRubooksPath) doesnt appear to exist."
+        } else {
+          break
+        }
+        $PassportalRubooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
+    }
+
+
 
 if (test-path $PassportalRubooksPath){
     Write-host "PassportalRunbooksPath at $PassportalRunbooksPath is valid"

@@ -84,16 +84,6 @@ Set-IncrementedState -newState "Import and match passwords from CSV data"
 #
 if ($true -eq $PassportalDocsConvert){
     Set-IncrementedState -newState "Optional Runbooks PDF split and parse to articles"
-    while ($true) {
-        if (-not $PassportalRubooksPath){
-            Write-Host "Runbooks path not yet set."
-        } elseif (-not $(Test-Path $PassportalRubooksPath)){
-            Write-Host "Runbooks path (currently $PassportalRubooksPath) doesnt appear to exist."
-        } else {
-            break
-        }
-        $PassportalRubooksPath = read-host "Please enter valid runbooks Export path (containing PDF files)"
-    }
     . .\jobs\convert-runbooks-to-articles.ps1
 }
 
