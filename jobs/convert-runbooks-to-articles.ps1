@@ -6,13 +6,10 @@ $includeComplexLayouts=$true
 # $SingleDocumentTest = $false
 
 $workdir = $workdir ?? $(split-path $(resolve-path .))
-$PopplerBins=$(join-path $workdir "tools\poppler")
-$PDFToHTML=$(join-path $PopplerBins "pdftohtml.exe")
-
-. "$workdir\helpers\html.ps1"
-. "$workdir\helpers\fileconvert.ps1"
-. "$workdir\helpers\general.ps1"
-
+foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
+    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
+    . $file.FullName
+}
 function Get-SafeFilename {
     param([string]$Name,
         [int]$MaxLength=25
@@ -138,6 +135,7 @@ foreach ($key in $convertedDocs.Keys) {
   } else {
     Write-Host "Could not match $key to company. creating"
     $createdcompany = New-HuduCompany -Name "$($companyHint ?? $doc["CompanyName"])".Trim()
+    $createdcompany = $createdcompany.company ?? $createdcompany
     $matchedcompany = Get-HuduCompanies -id $createdcompany.id 
     $matchedcompany = $matchedCompany ?? $(Get-HuduCompanies -name "$($companyHint ?? $doc["CompanyName"])".Trim() | select-object -first 1)
     
@@ -316,3 +314,9 @@ $r.Unresolved | Select-Object -First 5 | Format-Table -AutoSize
     Set-HuduArticle -Id $sd.HuduArticle.Id -CompanyId $sd.HuduArticle.company_id -Content $r.Html
   }
 }
+
+$imagesFromRunbooks = ($convertedDocs.Values | % { $_.HuduImages } | ? { $_ } | Measure-Object).Count
+
+# total split articles
+$splitArticlesFromRunbooks = ($convertedDocs.Values | % { $_.SplitDocs } | ? { $_ } | Measure-Object).Count
+

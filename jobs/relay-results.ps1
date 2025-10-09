@@ -29,8 +29,27 @@ $($CreatedPasswords.count) were created in Hudu from $($passportalData.csvData.p
 Your hudu instance now has a total of $($(Get-HuduPasswords).count) passwords available
 "@
 
+if (-not $PassportalDocsConvert -or $false -eq $PassportalDocsConvert){
+    $RunbookResults = "Not configured to - or configured not to process Runbook PDFs into individual articles. you can always run this after-the-fact, however."
+} else {
+    $imagesFromRunbooks = $imagesFromRunbooks ?? 0
+    $splitArticlesFromRunbooks = $splitArticlesFromRunbooks ?? 0
+    $RBtotals = 
+    if ($convertedDocs){
+    $convertedDocs.GetEnumerator() | Select Name,
+       @{n='Articles';e={ ($_.Value.SplitDocs | Measure-Object).Count }}        
+    } else {0}
+
+    $RunbookResults=@"
+    $($splitArticlesFromRunbooks) were created in Hudu from $($($convertedDocs.GetEnumerator()).count) Original Docs.
+    $($imagesFromRunbooks) images were extracted and relinked to articles.
+    Article Totals: $RBtotals
+"@
+}
+
+
 $SummaryIDX=0
-foreach ($summaryItem in @($ResultOverview, $DurationInfo, $CompaniesResults, $LayoutsResults, $assetResults, $Passwordsresults)){
+foreach ($summaryItem in @($ResultOverview, $DurationInfo, $CompaniesResults, $LayoutsResults, $assetResults, $Passwordsresults, $RunbookResults)){
     $SummaryIDX = $SummaryIDX+1
     Set-PrintAndLog -message "$summaryItem" -Color $(if ($SummaryIDX % 2 -eq 0) { 'DarkGreen' } else { 'DarkCyan' })
 }
