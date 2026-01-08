@@ -2,8 +2,6 @@
 
 Easy Migration from SolarWinds Passportal to Hudu
 
-## Setup
-
 ### Prerequisites
 
 - Hudu Instance of 2.38.0 or newer
@@ -13,6 +11,12 @@ Easy Migration from SolarWinds Passportal to Hudu
 - Powershell 7.5.1 or later
 - CSV exports for Passwords should be placed in the .\csv-exports directory within project folder
 - If you are splitting+migrating large Runbook Exports (as pdf), place those in one central folder
+
+> **Permissions Notice**
+>
+> Some scripts may require elevated permissions. If you encounter access-related errors, consider launching PowerShell (`pwsh`) with **Run as Administrator**.
+>
+> Please note that administrative privileges do not override Windows Rights Management or similarly enforced file protection mechanisms.
 
 ### Terminology
 
