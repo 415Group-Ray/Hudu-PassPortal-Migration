@@ -6,7 +6,7 @@ $downloadsFolder=$(join-path "$workdir" "downloads")
 $allSitesfolder=$(join-path "$workdir" "sites")
 $tmpfolder=$(join-path "$workdir" "tmp")
 $ErroredItemsFolder=$(join-path "$logsFolder" "errored")
-$csvPath=$(join-path $workdir "exported-csvs")
+$csvPath=$csvPath ?? $(join-path $workdir "exported-csvs")
 Write-Host "Hudu Max Docsize: $HUDU_MAX_DOCSIZE"
 $PPBaseURIs = @(
     @{APIBase="us-clover"

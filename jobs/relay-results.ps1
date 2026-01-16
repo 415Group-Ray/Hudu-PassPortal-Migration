@@ -1,4 +1,4 @@
-
+$convertedDocs = $convertedDocs ?? @{}
 
 $RunSummary.SetupInfo.FinishedAt = $(get-date)
 $RunSummary.SetupInfo.Duration = $RunSummary.SetupInfo.FinishedAt - $RunSummary.SetupInfo.StartedAt
@@ -25,7 +25,7 @@ Your Hudu instance now has a total of $($(Get-HuduAssets).Count) assets
 "@
 
 $Passwordsresults=@"
-$($CreatedPasswords.count) were created in Hudu from $($passportalData.csvData.passwords.count) Passwords were found via CSV
+$($CreatedPasswords.count) were created in Hudu from $([int]$(if ($passportalData.csvData.passwords){$passportalData.csvData.passwords.count} else {0}) + [int](if ($passportalData.csvData.vault){$passportalData.csvData.vault.count} else {0})) Passwords were found via CSV
 Your hudu instance now has a total of $($(Get-HuduPasswords).count) passwords available
 "@
 
