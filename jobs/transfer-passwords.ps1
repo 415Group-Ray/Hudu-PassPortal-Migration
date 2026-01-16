@@ -3,15 +3,19 @@ if ($null -eq $passportalData.csvData) {
     Set-Prontandlog -message "Sorry, we dont have any CSV data in your exports directory needed to migrate passwords..."
 } else { write-host "CSV data loaded!"}
 $PasswordIDX=0
-foreach ($password in $passportalData.csvData.passwords) {
-    $newCredential   = $passportalData.csvData.passwords[$PasswordIDX]
+$passwordsToProcess = @($passportalData.csvData.passwords) + @($passportalData.csvData.vault)
+
+foreach ($newCredential in $passwordsToProcess) {
     $credentialName = $(if (-not [string]::IsNullOrEmpty($newCredential.Description)) {$newCredential.Description} else {"$($newCredential.Credential) - $($newCredential.Username)"})
-    Write-Host "Starting $($credentialName) for $($newCredential.'Client Name')"
+    $clientName = $newCredential.'Client Name' ?? "Vault"
+    Write-Host "Starting $($credentialName) for $($clientName)"
     
-    # Match Companyu
-    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $newCredential.'Client Name'} | Select-Object -First 1).HuduCompany
+    # Match Company
+
+    $MatchedCompany = $($MatchedCompanies | Where-Object {@($_.PPcompany.name, $_.PPcompany.decodedName) -contains $clientName} | Select-Object -First 1).HuduCompany
     if (-not $MatchedCompany) {
-        $MatchedCompany = Select-ObjectFromList -objects $Hududata.Data.companies -message "Which company to match for new credential $(Get-JsonString $newCredential)"
+        $MatchedCompany = Select-ObjectFromList -objects $(get-huducompanies) -message "Which company to match for new credential $(Get-JsonString $newCredential)"
+        $MatchedCompany = $MatchedCompany.company ?? $MatchedCompany
     }
     Write-Host "Matched Credential $($newCredential) to company $($MatchedCompany.name)"
     
@@ -54,9 +58,20 @@ foreach ($password in $passportalData.csvData.passwords) {
     if (-not [string]::IsNullOrEmpty($newCredential.Username)){
         $NewPassSplat["Username"] = $newCredential.Username
     }
-    if (-not [string]::IsNullOrEmpty($($newCredential.Description ?? $newCredential.Notes))){
-        $NewPassSplat["Description"] = $($newCredential.Description ?? $newCredential.Notes)
+    $Description_or_Notes = ""
+    if (-not [string]::IsNullOrEmpty($($newCredential.Description))){
+        $Description_or_Notes = $($newCredential.Description)
     }
+    if (-not [string]::IsNullOrEmpty($($newCredential.Notes))){
+        if (-not [string]::IsNullOrEmpty($Description_or_Notes)){$Description_or_Notes += "`n`n"}
+        $Description_or_Notes += $($newCredential.Notes)
+    }
+    if (-not [string]::IsNullOrEmpty($Description_or_Notes)){
+        $NewPassSplat["Description"] = $Description_or_Notes
+    }
+
+
+
     if ($null -ne $MatchedAsset){
         $NewPassSplat["PasswordableId"] = $MatchedAsset.Id
         $NewPassSplat["PasswordableType"] = 'Asset'
