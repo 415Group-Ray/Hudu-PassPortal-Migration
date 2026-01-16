@@ -3,27 +3,26 @@ $workdir = $PSScriptRoot
 ##
 #
 $RunSummary = $null
+$workdir = $workdir ?? $PSScriptRoot
+foreach ($requiredfolder in @("$workdir\logs","$workdir\logs\errored","$workdir\tmp")) {
+    if (-not (Test-Path $requiredfolder)) {
+        New-Item -ItemType Directory -Path $requiredfolder -Force -ErrorAction Stop | Out-Null
+    }
+}
 $passportalData = @{
     docTypes = @("asset","active_directory","application","backup","email","folders","file_sharing","contact","location","internet","lan","printing","remote_access","vendor","virtualization","voice","wireless","licencing","custom","ssl");
     APIkey = $($passportalData_APIkeyID ?? "$(read-host "please enter your Passportal API key")"); APIkeyId = $($PassportalData_SecretKey ?? "$(read-host "please enter your Passportal API key ID")")
     Token = $null; Headers = @{}; BaseURL = $null; clients=@(); Documents =@(); csvData = @{}
 }
-$workdir = $workdir ?? $PSScriptRoot
-if (-not (Test-Path "$workdir/logs")) {
-    New-Item -ItemType Directory -Path "$workdir/logs" -Force -ErrorAction Stop | Out-Null
-}
 
 $PassportalDocsConvert = $PassportalDocsConvert ?? $false
-
 $sensitiveVars = @("PassportalApiKey","PassportalApiKeyId","HuduApiKey","PassPortalHeaders","passportalData")
 $HuduBaseURL = $HuduBaseURL ?? "$(read-host "please enter your Hudu Base url")"
 $HuduAPIKey = $HuduAPIKey ?? "$(read-host "please enter your Hudu API Key")"
 $SelectedLocation = $SelectedLocation ?? $(Select-ObjectFromList -allowNull $false -objects $PPBaseURIs -message "Choose your Location for Passportal API access")
 $passportalData.BaseURL = "https://$($SelectedLocation.APIBase).passportalmsp.com/"
 $PassportalDocsConvert = $PassportalDocsConvert ?? ([bool]$(Select-ObjectFromList -message "Do you have any Runbook PDF exports to parse/split into individual articles?" -objects @("Yes","No, I don't want to move any runbooks") -allowNull $true) -eq "Yes") ?? $false
-if ($true -eq $PassportalDocsConvert){
-    Write-Host "You are set to include Runbooks in this migration. $(if ($null -eq $PassportalRubooksPath) {'We will ask you for a path for these later'} else {"Your Rubooks path is set to $PassportalRubooksPath"})"
-}
+if ($true -eq $PassportalDocsConvert){Write-Host "You are set to include Runbooks in this migration. $(if ($null -eq $PassportalRubooksPath) {'We will ask you for a path for these later'} else {"Your Rubooks path is set to $PassportalRubooksPath"})"}
 
 
 $MatchedCompanies = @()
@@ -38,8 +37,7 @@ $foundDocs = 0
 ##
 #
 foreach ($file in $(Get-ChildItem -Path ".\helpers" -Filter "*.ps1" -File | Sort-Object Name)) {
-    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue
-    . $file.FullName
+    Write-Host "Importing: $($file.Name)" -ForegroundColor DarkBlue; . $file.FullName;
 }
 Set-IncrementedState -newState "Set up and init"
 Set-PrintAndLog -message "using $($selectedLocation.name) / $BaseUri for PassPortal" -Color DarkBlue

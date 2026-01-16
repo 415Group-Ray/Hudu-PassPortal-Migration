@@ -75,7 +75,7 @@ function Get-CSVExportData {
         Set-PrintAndLog -message "Importing: $($_.Name)" -Color DarkBlue
 
         switch -Wildcard ($_.Name.ToLower()) {
-            '*clients*.csv' {
+            '*client*.csv' {
                 $expected = @('Passportal ID','Client Name','Phone','Email')
                 $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
                 $csv = if ($hasHeader) {
@@ -85,8 +85,8 @@ function Get-CSVExportData {
                 }
                 $csvData.clients = $csv
             }
-            '*passwords*.csv' {
-                $expected = @('Passportal ID','Client Name','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)')
+            '*password*.csv' {
+                $expected = @('Passportal ID (BLANK)','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)','TOTP Secret')
                 $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
                 $csv = if ($hasHeader) {
                     Import-Csv -Path $fullPath
@@ -95,7 +95,7 @@ function Get-CSVExportData {
                 }
                 $csvData.passwords = $csv
             }
-            '*users*.csv' {
+            '*user*.csv' {
                 $expected = @('Passportal ID (BLANK)','Last Name','First Name','Email','Phone')
                 $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
                 $csv = if ($hasHeader) {
@@ -106,7 +106,7 @@ function Get-CSVExportData {
                 $csvData.users = $csv
             }
             '*vault*.csv' {
-                $expected = @('Passportal ID','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)')
+                $expected = @('Passportal ID (BLANK)','Credential','Username','Password','Description','Expires (Yes/No)','Notes','URL','Folder(Optional)','TOTP Secret')
                 $hasHeader = Test-CSVHasHeader -Path $fullPath -ExpectedCols $expected
                 $csv = if ($hasHeader) {
                     Import-Csv -Path $fullPath
