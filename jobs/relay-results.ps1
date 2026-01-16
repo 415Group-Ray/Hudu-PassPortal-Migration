@@ -1,4 +1,4 @@
-
+$convertedDocs = $convertedDocs ?? @{}
 
 $RunSummary.SetupInfo.FinishedAt = $(get-date)
 $RunSummary.SetupInfo.Duration = $RunSummary.SetupInfo.FinishedAt - $RunSummary.SetupInfo.StartedAt
